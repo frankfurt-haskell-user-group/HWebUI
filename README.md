@@ -27,3 +27,9 @@ Demo
 Run HWebUI-example1 and point your browser to:
 
 http://localhost:8080/webgui
+
+Wiki
+====
+
+See also the [Wiki](https://github.com/althainz/HWebUI/wiki) for
+more information.
