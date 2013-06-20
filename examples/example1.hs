@@ -2,28 +2,12 @@
 module Main where
 
 import Yesod
-import Network.Wai.Handler.Warp (runSettings, Settings(..), defaultSettings)
-import qualified Network.WebSockets             as WS
-import qualified Network.Wai.Handler.WebSockets as WS
-import qualified Data.Aeson                     as J
-import           Data.Time.Clock (getCurrentTime)
-import           Control.Monad (forever)
-import           Control.Concurrent (forkIO, threadDelay)
-import System.IO (hFlush, stdout)
-import Control.Applicative
-import Control.Monad
-import Text.Julius (rawJS)
-import Control.Concurrent
-import Control.Exception (SomeException, mask, try)
-import System.IO.Unsafe
+import Control.Concurrent (threadDelay)
 import Control.Wire
 import Prelude hiding ((.), id)
 import Data.Map
-import Data.Text
-import Data.Attoparsec.Number as N
 
 import HWebUI
-import Text.Printf
 
 loop1 wire session = do
     (r, wire',  session') <- stepSession wire session ()
