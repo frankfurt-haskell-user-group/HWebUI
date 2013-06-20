@@ -1,0 +1,50 @@
+name:                HWebUI
+version:             0.1.0.0
+synopsis:            Haskell User Interface Library
+-- description:         
+-- license:             
+-- license-file:        LICENSE
+author:              Peter Althainz
+-- maintainer:          
+-- copyright:           
+category:            Web
+build-type:          Simple
+cabal-version:       >=1.8
+
+source-repository head
+  type:     git
+  location: git://github.com/althainz/HWebUI.git
+
+library
+  hs-source-dirs:      src
+  exposed-modules:     HWebUI
+  -- other-modules:       
+  build-depends:       aeson,
+                       attoparsec,
+                       base,
+                       containers,
+                       netwire,
+                       shakespeare-js,
+                       text,
+                       time,
+                       warp,
+                       wai-websockets,
+                       websockets,
+                       yesod < 1.2
+
+executable HWebUI-example1
+  hs-source-dirs:      examples
+  main-is:             example1.hs
+  build-depends:       aeson,
+                       attoparsec,
+                       base,
+                       containers,
+                       HWebUI,
+                       netwire,
+                       shakespeare-js,
+                       text,
+                       time,
+                       wai-websockets,
+                       warp,
+                       websockets,
+                       yesod < 1.2
