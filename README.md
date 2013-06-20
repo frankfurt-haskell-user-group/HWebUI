@@ -3,6 +3,8 @@ HWebUI
 
 Haskell User Interface Library
 
+Early prototype.
+
 Installation
 ============
 
