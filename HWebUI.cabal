@@ -26,7 +26,6 @@ library
                        netwire,
                        shakespeare-js,
                        text,
-                       time,
                        warp,
                        wai-websockets,
                        websockets,
@@ -35,16 +34,8 @@ library
 executable HWebUI-example1
   hs-source-dirs:      examples
   main-is:             example1.hs
-  build-depends:       aeson,
-                       attoparsec,
-                       base,
+  build-depends:       base,
                        containers,
                        HWebUI,
                        netwire,
-                       shakespeare-js,
-                       text,
-                       time,
-                       wai-websockets,
-                       warp,
-                       websockets,
                        yesod < 1.2
