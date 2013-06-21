@@ -77,14 +77,8 @@ main = do
     forkChild $ runWebserver port gsmap7 guiLayout
      
 
-    -- build the FRP wire, we need a couple of elements
+    -- build the FRP wire, arrow notation
     
-    -- get a double wire from a string wire
-    let dbl = mkFix (\t s -> Right (atof s))
-    let a1 = dbl . arg1 . pure Nothing
-    let a2 = dbl . arg2 . pure Nothing
-
-    --
     let result = proc _ -> do
                                a1 <- arg1 -< Nothing
                                a2 <- arg2 -< Nothing
