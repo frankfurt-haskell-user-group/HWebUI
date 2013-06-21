@@ -348,7 +348,7 @@ wRadioButton wid name value checked = do
              });  
            |]
   toWidget [hamlet|
-           <input type="radio" id="#{wid}">
+           <input type="radio" id="#{wid}" name="#{name}">
             |]
 
 
@@ -477,7 +477,7 @@ forkChild io = do
         mvar <- newEmptyMVar
         childs <- takeMVar children
         putMVar children (mvar:childs)
-        forkFinally io (\_ -> putMVar mvar ())
+        HWebUI.forkFinally io (\_ -> putMVar mvar ())
 
 forkFinally :: IO a -> (Either SomeException a -> IO ()) -> IO ThreadId
 forkFinally action and_then =

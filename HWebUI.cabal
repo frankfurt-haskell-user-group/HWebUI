@@ -48,3 +48,12 @@ executable HWebUI-example-counter
                        HWebUI,
                        netwire,
                        yesod < 1.2
+
+executable HWebUI-example-arithmetic
+  hs-source-dirs:      examples
+  main-is:             example-arithmetic.hs
+  build-depends:       base,
+                       containers,
+                       HWebUI,
+                       netwire,
+                       yesod < 1.2
