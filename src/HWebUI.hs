@@ -248,14 +248,14 @@ wInitGUI port = do
 
            |]
 
-wButton :: String -> Widget
-wButton wid = do
+wButton :: String -> String -> Widget
+wButton wid label = do
   toWidget [julius|
             require(["dojo/ready", "dijit/form/Button", "dojo/dom", "dojo/json"], function(ready, Button, dom, JSON){
                        ready(function(){
                                 // Create a button programmatically:
                                 var myButton = new Button({
-                                                             label: "Click me!",
+                                                             label: "#{rawJS label}",
                                                              onClick: function(){
                                                                sendMessage("#{rawJS wid}", "OnChange", "Event", "Button");
                                                              }

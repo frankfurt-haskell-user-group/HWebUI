@@ -27,11 +27,13 @@ main = do
         
         -- buttons
         toWidget [hamlet|
-              <H1>Cool Webgui Test 
+              <H1>HWebUI - Example 1
+              The example 1 currently does not show specific interesting things. It was derived from a short demo during our first kickoff meeting. Button 1 changes the result text to something like "Button1 fired". This only works if the checkbox is set as a Filter. Button 2 removes the checkbox Filter. All that is coded in FRP in only a couple of lines, after the elements have been initialized.<p>
+
               A couple of buttons for input:
                     |]
-        wButton "Button1"
-        wButton "Button2"
+        wButton "Button1" "Button One"
+        wButton "Button2" "Button Two"
 
         -- a text box
         toWidget [hamlet|

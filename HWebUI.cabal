@@ -39,3 +39,12 @@ executable HWebUI-example1
                        HWebUI,
                        netwire,
                        yesod < 1.2
+
+executable HWebUI-example-counter
+  hs-source-dirs:      examples
+  main-is:             example-counter.hs
+  build-depends:       base,
+                       containers,
+                       HWebUI,
+                       netwire,
+                       yesod < 1.2
