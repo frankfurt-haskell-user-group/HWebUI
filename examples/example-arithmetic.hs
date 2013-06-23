@@ -80,12 +80,12 @@ main = do
     -- build the FRP wire, arrow notation
     
     let result = proc _ -> do
-                               a1 <- arg1 -< Nothing
-                               a2 <- arg2 -< Nothing
-			       badd <- addB -< Nothing
-      			       bsub <- subB -< Nothing
-                               bmul <- mulB -< Nothing
-                               bdiv <- divB -< Nothing
+                               a1 <- hold "" arg1 -< Nothing
+                               a2 <- hold "" arg2 -< Nothing
+			       badd <- hold True addB -< Nothing
+      			       bsub <- hold False subB -< Nothing
+                               bmul <- hold False mulB -< Nothing
+                               bdiv <- hold False divB -< Nothing
                                
                                let op = if badd then (+) else (if bsub then (-) else (if bmul then (*) else (if bdiv then (/) else (\ x y -> 0.0))))
                                let res = op (atof a1) (atof a2)

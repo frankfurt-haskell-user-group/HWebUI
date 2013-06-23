@@ -57,3 +57,12 @@ executable HWebUI-example-arithmetic
                        HWebUI,
                        netwire,
                        yesod < 1.2
+
+executable HWebUI-example-currency
+  hs-source-dirs:      examples
+  main-is:             example-currency.hs
+  build-depends:       base,
+                       containers,
+                       HWebUI,
+                       netwire,
+                       yesod < 1.2

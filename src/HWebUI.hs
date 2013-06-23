@@ -102,45 +102,89 @@ instance J.FromJSON GUIMessage where
 instance J.ToJSON GUIMessage where
   toJSON (GUIMessage gmId gmSignal gmValue gmType) = Yesod.object ["gmId" .= gmId, "gmSignal" .= gmSignal, "gmValue" .= gmValue, "gmType" .= gmType]
   
--- communication between GUI Frontend and webserver over MVar lists as GSProvider, Channels
-
-type GSProvider = MVar [GUIMessage]
-
-_sendGS :: GSProvider -> GUIMessage -> IO ()
-_sendGS gsp gs = do
-  gsList <- takeMVar gsp
-  let gsListNew = gsList ++ [gs]
-  putMVar gsp gsListNew
-  return ()
+-- communication between GUI Frontend and webserver
   
-_receiveGS :: GSProvider -> IO (Maybe GUIMessage)
-_receiveGS gsp = do
-  gsList <- takeMVar gsp
+-- internal data
+
+type OneChannel = MVar [GUIMessage]
+
+_readChannel :: OneChannel -> IO (Maybe GUIMessage)
+_readChannel chan = do
+  gsList <- takeMVar chan
   let (gsListNew, rval) = case gsList of
         (gs:gss) -> (gss, Just gs)
         [] -> ([], Nothing)
-  putMVar gsp gsListNew
+  putMVar chan gsListNew
   return rval
   
-type GSChannel = (GUIMessage -> IO (), IO (Maybe GUIMessage), GUIMessage -> IO (), IO (Maybe GUIMessage))
+_writeChannel :: OneChannel -> GUIMessage -> IO ()
+_writeChannel chan msg = do
+  gsList <- takeMVar chan
+  putMVar chan (gsList ++ [msg])
+  return ()
+  
+  
+data GSChannel = GSChannel {
+  sendToGUI :: OneChannel,
+  receiveFromGUI :: OneChannel,
+  valueSetFlag :: MVar Bool 
+  }
+                 
+_checkValueSetFlag :: GSChannel -> IO Bool
+_checkValueSetFlag gsc = do
+  flag <- takeMVar (valueSetFlag gsc)
+  putMVar (valueSetFlag gsc) flag
+  return flag
+  
+_setValueSetFlag :: GSChannel -> Bool -> IO ()
+_setValueSetFlag gsc flag = do
+  flag' <- takeMVar (valueSetFlag gsc)
+  putMVar (valueSetFlag gsc) flag
+  return ()
+  
+-- external interface
 
 createChannel :: IO GSChannel
 createChannel = do
-  rMV <- newMVar ([]::[GUIMessage])
-  sMV <- newMVar ([]::[GUIMessage])
-  return (_sendGS rMV, _receiveGS sMV, _sendGS sMV, _receiveGS rMV )
-                                                  
+  sendChannel <- newMVar ([]::[GUIMessage])
+  receiveChannel <- newMVar ([]::[GUIMessage])
+  valueSetFlag <- newMVar False
+  return $ GSChannel sendChannel receiveChannel valueSetFlag
+  
+-- two types of message routines, one used from Server side and one used from gui side
+
+-- used in the netwire server code, to receive and send to and from gui
+-- contains logic, to prevent a SetMessage to trigger a changed message
+  
 receiveGS :: GSChannel -> IO (Maybe GUIMessage)
-receiveGS (s, r, s', r') = r
+receiveGS gsc = do
+  msg <- _readChannel (receiveFromGUI gsc)
+  case msg of
+    Just gmsg -> do
+      flag <- _checkValueSetFlag gsc
+      if flag then do
+        _setValueSetFlag gsc False
+        return Nothing
+        else do
+          return $ Just gmsg
+    Nothing -> do
+      return Nothing
+             
 
 sendGS :: GSChannel -> GUIMessage -> IO ()
-sendGS (s, r, s', r') = s
+sendGS gsc msg = do
+                 _writeChannel (sendToGUI gsc) msg
+                 _setValueSetFlag gsc True
+                 return ()
+
+-- used in the handlers to send over the wire towards the gui with JSON format
+-- plainly sends and receives, no additional logic
 
 receiveGS' :: GSChannel -> IO (Maybe GUIMessage)
-receiveGS' (s, r, s', r') = r'
+receiveGS' gsc = _readChannel (sendToGUI gsc)
 
 sendGS' :: GSChannel -> GUIMessage -> IO ()
-sendGS' (s, r, s', r') = s'
+sendGS' gsc msg = _writeChannel (receiveFromGUI gsc) msg
 
 
 -- Netwire Types
@@ -484,15 +528,49 @@ forkFinally action and_then =
   mask $ \restore ->
     forkIO $ try (restore action) >>= and_then
     
+
+
 --
 -- here we start with the netwire gui elements
 -- 
 
--- simple IO based wire type with no exception types
 
+-- generic function to create a value wire, a value wire has type "GUIWire (Maybe a) a"
 
--- checkbox wire
---
+valueWireGen :: String -- ^ Element Id 
+                -> Map String GSChannel -- ^ Channel Map
+                -> (a -> GUISignalValue) -- ^ svalue creation function
+                -> (GUISignalValue -> a) -- ^ svalue extraction function
+                -> GUIElementType -- ^ type of GUI Element
+                -> IO (GUIWire (Maybe a) a , Map String GSChannel) -- ^ (wire, new Channel Map)
+                
+valueWireGen elid gsMap svalCreator svalExtractor guitype = do
+  
+  channel <- createChannel
+  let gsMapNew = Data.Map.insert elid channel gsMap
+  
+  let wire = mkFixM  (\t inVal -> do
+                                                case inVal of
+                                                  Just bState -> do
+                                                    sendGS channel (GUIMessage elid SetValue (svalCreator bState) guitype)
+                                                    return $ Left ()
+                                                  Nothing -> do
+                                                    rcv <- receiveGS channel
+                                                    case rcv of
+                                                      Just guimsg -> do
+                                                        if (gmSignal guimsg) == OnChange then do
+                                                          let bState = svalExtractor (gmValue guimsg)
+                                                          return $ Right bState
+                                                          else return $ Left ()
+                                                      Nothing -> do
+                                                        return $ Left () 
+                    )
+                                         
+  return (wire, gsMapNew)  
+
+checkBoxW elid gsMap = valueWireGen elid gsMap SVBool (\svval -> let (SVBool bstate) = svval in bstate) CheckBox
+radioButtonW elid gsMap = valueWireGen elid gsMap SVBool (\svval -> let (SVBool bstate) = svval in bstate) RadioButton
+textBoxW elid gsMap = valueWireGen elid gsMap SVString (\svval -> let (SVString bstate) = svval in bstate) TextBox
 
 
 guiWireGen :: String -> Map String GSChannel -> (String -> GSChannel -> IO (GUIWire a b)) -> IO (GUIWire a b, Map String GSChannel)
@@ -501,72 +579,6 @@ guiWireGen elid gsMap wireIn = do
   let gsMapNew = Data.Map.insert elid chan gsMap
   wireOut <- wireIn elid chan
   return (wireOut, gsMapNew)  
-
-checkBoxW' :: String -> GSChannel -> IO (GUIWire (Maybe Bool) Bool)
-checkBoxW' boxid channel = do
-  let wire =  mkStateM False (\t (trigger, s) -> do
-                                 case trigger of
-                                   Just bState -> do
-                                     sendGS channel (GUIMessage boxid SetValue (SVBool bState) CheckBox)
-                                     return (Right bState, bState)
-                                   Nothing -> do
-                                     rcv <- receiveGS channel
-                                     case rcv of
-                                       Just guimsg -> do
-                                         if (gmSignal guimsg) == OnChange then do
-                                             let (SVBool bState) = gmValue guimsg
-                                             return (Right bState, bState)
-                                             else
-                                               return (Right s, s)
-                                       Nothing -> do
-                                         return (Right s, s)   )
-  return wire                                                         
-
-checkBoxW elid gsMap = guiWireGen elid gsMap checkBoxW'
-  
-radioButtonW' :: String -> GSChannel -> IO (GUIWire (Maybe Bool) Bool)
-radioButtonW' boxid channel = do
-  let wire =  mkStateM False (\t (trigger, s) -> do
-                                 case trigger of
-                                   Just bState -> do
-                                     sendGS channel (GUIMessage boxid SetValue (SVBool bState) RadioButton)
-                                     return (Right bState, bState)
-                                   Nothing -> do
-                                     rcv <- receiveGS channel
-                                     case rcv of
-                                       Just guimsg -> do
-                                         if (gmSignal guimsg) == OnChange then do
-                                             let (SVBool bState) = gmValue guimsg
-                                             return (Right bState, bState)
-                                             else
-                                               return (Right s, s)
-                                       Nothing -> do
-                                         return (Right s, s)   )
-  return wire                                                         
-
-radioButtonW elid gsMap = guiWireGen elid gsMap radioButtonW'
-  
-textBoxW' :: String -> GSChannel -> IO (GUIWire (Maybe String) String)
-textBoxW' boxid channel = do
-  let wire =  mkStateM "" (\t (trigger, s) -> do
-                                 case trigger of
-                                   Just bState -> do
-                                     sendGS channel (GUIMessage boxid SetValue (SVString bState) TextBox)
-                                     return (Right bState, bState)
-                                   Nothing -> do
-                                     rcv <- receiveGS channel
-                                     case rcv of
-                                       Just guimsg -> do
-                                         if (gmSignal guimsg) == OnChange then do
-                                           let (SVString bState) = gmValue guimsg
-                                           return (Right bState, bState)
-                                           else
-                                             return (Right s, s)
-                                       Nothing -> do
-                                         return (Right s, s)   )
-  return wire                                                         
-  
-textBoxW elid gsMap = guiWireGen elid gsMap textBoxW'
 
 numberTextBoxW' :: String -> GSChannel -> IO (GUIWire (Maybe Double) Double)
 numberTextBoxW' boxid channel = do
