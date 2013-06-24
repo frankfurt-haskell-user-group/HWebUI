@@ -16,6 +16,7 @@ module HWebUI (
   wButton,
   wCheckBox,
   wHtml,
+  wMultiSelect,
   wNumberTextBox,
   wRadioButton,
   wTextBox,
@@ -29,6 +30,7 @@ module HWebUI (
   buttonW,
   checkBoxW,
   htmlW,
+  multiSelectW,
   numberTextBoxW,
   radioButtonW,
   textBoxW,
@@ -333,7 +335,7 @@ wInitGUI port = do
                                  theGuiSocket.send(JSON.stringify(msg));
                            };
 
-            require(["dojo/ready", "dijit/form/Button", "dojo/dom", "dojo/json", "dijit/registry"], function(ready, Button, dom, JSON, registry){
+            require(["dojo/ready", "dijit/form/Button", "dojo/dom", "dojo/json", "dijit/registry", "dojo/dom-construct"], function(ready, Button, dom, JSON, registry, domConstruct){
 
                        theGuiSocket.onmessage = function(evt) {
                             // get data object
@@ -345,14 +347,34 @@ wInitGUI port = do
                               message = JSON.parse(evt.data, true);
                               if (message.gmSignal == "SetValue")
                               {
-                                elem =  registry.byId(message.gmId)
-                                if (message.gmType != "Html") {
-                                   elem.set("value", message.gmValue);
-                                } else {
+                                elem =  registry.byId(message.gmId);
+
+                                if (message.gmType == "MultiSelect") 
+                                {
+                                   var sel = dijit.byId(message.gmId);
+                                   sel.destroyDescendants();
+                                   var dsel = dom.byId(message.gmId);
+                                   for(var i in message.gmValue)
+                                   {
+                                       var c = domConstruct.create('option');
+                                       var v = message.gmValue[i];
+                                       c.innerHTML = v;
+                                       c.value = v;
+                                       dsel.appendChild(c);
+                                   }
+                                }
+                                else if (message.gmType == "Html") 
+                                {
                                    dom.byId(message.gmId).innerHTML = message.gmValue;
-                                }                              
-                                if (message.gmType == "CheckBox") {
+                                }
+                                else if (message.gmType == "CheckBox") 
+                                {
+                                   elem.set("value", message.gmValue);
                                    elem.checked = message.gmValue;
+                                }
+                                else
+                                {
+                                   elem.set("value", message.gmValue);
                                 }
                               } 
                             }
@@ -424,6 +446,27 @@ wTextBox wid = do
            |]
   toWidget [hamlet|
            <input id="#{wid}" type="textbox">
+            |]
+
+-- | Yesod widget for the MultiSelect GUI element
+wMultiSelect :: String -- ^ Element Id
+            -> Widget -- ^ resulting Yesod widget
+wMultiSelect wid = do
+  toWidget [julius|
+            require(["dojo/ready", "dijit/form/MultiSelect", "dojo/dom", "dojo/json"], function(ready, MultiSelect, dom, JSON){
+                       ready(function(){
+                                // Create a text box programmatically:
+                                var myMultiSelect = new MultiSelect({
+                                                             onChange: function(val){
+                                                               sendMessage("#{rawJS wid}", "OnChange", val, "MultiSelect");
+                                                             },
+                                                             name: '#{rawJS wid}'
+                                                             }, dom.byId('#{rawJS wid}'));
+                       });
+             });  
+           |]
+  toWidget [hamlet|
+           <select id="#{wid}">
             |]
 
 -- | Yesod widget for the NumberTextBox GUI element
@@ -736,6 +779,12 @@ textBoxW :: String -- ^ Element Id
              -> Map String GSChannel -- ^ Channel Map (Internal)
              -> IO (GUIWire (Maybe String) String, Map String GSChannel) -- ^ resulting Wire
 textBoxW elid gsMap = valueWireGen elid gsMap SVString (\svval -> let (SVString bstate) = svval in bstate) TextBox
+
+-- | Basic wire for MultiSelect GUI element functionality
+multiSelectW :: String -- ^ Element Id
+             -> Map String GSChannel -- ^ Channel Map (Internal)
+             -> IO (GUIWire (Maybe [String]) [String], Map String GSChannel) -- ^ resulting Wire
+multiSelectW elid gsMap = valueWireGen elid gsMap SVStringList (\svval -> let (SVStringList bstate) = svval in bstate) MultiSelect
 
 
 guiWireGen :: String -> Map String GSChannel -> (String -> GSChannel -> IO (GUIWire a b)) -> IO (GUIWire a b, Map String GSChannel)
