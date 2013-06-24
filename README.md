@@ -24,7 +24,7 @@ replacing `cabal` by `cabal-dev` for a sandboxed install. See
 Demo
 ====
 
-Run HWebUI-example-arithmetic, HWebUI-example-currency or HWebUI-example-counter and point your browser to:
+Run HWebUI-example-arithmetic, HWebUI-example-currency, HWebUI-example-counter or HWebUI-example-multiselect and point your browser to:
 
 http://localhost:8080/webgui
 
