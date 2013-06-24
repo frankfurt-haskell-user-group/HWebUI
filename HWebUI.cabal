@@ -26,6 +26,7 @@ library
                        netwire,
                        shakespeare-js,
                        text,
+                       vector,
                        warp,
                        wai-websockets,
                        websockets,

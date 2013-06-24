@@ -1,26 +1,56 @@
 {-# LANGUAGE TemplateHaskell, QuasiQuotes, OverloadedStrings, TypeFamilies, MultiParamTypeClasses, Arrows #-}
+
+
+{- | HWebUI is providing FRP-based GUI functionality for Haskell by utilizing the Web-Browser. It is build on top of Yesod for the Web technologies and on netwire for the FRP interface. The status is \"early prototype\". The implementation uses a Javascript library (Dojo toolkit) for providing typical widgets, HTML for the layout of the widgets. With Javascript and websockets events are transferred between the Web and the Haskell world. This happens behind the scenes. The Haskell programmer is using a FRP based interface. See also: <http://www.github.com/althainz/HWebUI>.
+-}
 module HWebUI (
-  GSChannel,
+  -- * Creating the GUI Layout with Yesod Widgets
   
+  -- ** How HWebUI Yesod widgets can be used 
+  -- $guilayout
+  
+  -- ** Initializing Yesod widget
   wInitGUI,
+ 
+  -- ** The Yesod widgets
   wButton,
+  wCheckBox,
+  wHtml,
+  wNumberTextBox,
   wRadioButton,
   wTextBox,
-  wCheckBox,
-  wNumberTextBox,
-  wHtml,
   
+  -- * Creating the GUI Functionality with FRP
+  
+  -- ** How HWebUI wires (based on netwire) work
+  -- $wiremechanism
+  
+  -- ** The netwire wires (basic functionality)
+  buttonW,
   checkBoxW,
-  textBoxW,
+  htmlW,
   numberTextBoxW,
   radioButtonW,
-  htmlW,
-  buttonW,
+  textBoxW,
   
-  runWebserver,
+  -- ** functions to extend basic wires with additional functionality
+  -- $advancedwire
+  
+  
+  
+  -- * Running the GUI
+  
+  -- ** How to run the GUI
+  -- $rungui
+  
+  -- ** Functions to run the GUI  
   forkChild,
-  waitForChildren
+  runWebserver,
+  waitForChildren,
   
+  -- ** Miscellaneous
+  GSChannel,
+ 
   ) where
 
 import Yesod
@@ -39,11 +69,12 @@ import Control.Wire
 import Prelude hiding ((.), id)
 import Data.Map
 import Data.Text
+import Data.Vector (toList, fromList)
 import Data.Attoparsec.Number as N
 
-
+-------------------------------
 -- communication infrastructure
---
+-------------------------------
 
 -- there are two communication channels, one from the web javascript to the backends yesod server, another one 
 -- from the backend yesod server to the GUI FRP frontend process. For both different types of messages are used.
@@ -58,13 +89,21 @@ instance J.ToJSON GUISignal where
   toJSON sig = String (pack (show sig))
 
 -- the values transmitted being the signal itself
-data GUISignalValue = SVDouble Double | SVString String | SVInt Integer | SVBool Bool | SVEvent deriving (Show, Read)
+data GUISignalValue = SVDouble Double | SVString String | SVStringList [String] | SVInt Integer | SVBool Bool | SVEvent deriving (Show, Read)
+
 instance J.FromJSON GUISignalValue where
   parseJSON (String "Event") = return SVEvent
   parseJSON (Number (N.I i)) = return $ SVInt i
   parseJSON (Number (N.D d)) = return $ SVDouble d
   parseJSON (Bool b) = return $ SVBool b
   parseJSON (String s) = return $ SVString (unpack s)
+  parseJSON (Array v) = 
+    case Data.Vector.toList v of
+      (String s:ss) -> do
+        sr <- J.parseJSON (Array (Data.Vector.fromList ss))
+        let s1 = unpack s
+        return $ SVStringList (s1 : sr)
+      [] -> return $ SVStringList []
   parseJSON _ = mzero
   
 instance J.ToJSON GUISignalValue where
@@ -72,11 +111,12 @@ instance J.ToJSON GUISignalValue where
   toJSON (SVString s) = toJSON s
   toJSON (SVInt i) = toJSON i
   toJSON (SVBool b) = toJSON b
+  toJSON (SVStringList sl) = toJSON sl
   toJSON (SVEvent) = String "Event"
 
 -- GuiElementId is the String identifying a GUI element
 type GUIElementId = String
-data GUIElementType = Button | CheckBox | TextBox | NumberTextBox | RadioButton | Html deriving (Show, Read)
+data GUIElementType = Button | CheckBox | TextBox | MultiSelect | NumberTextBox | RadioButton | Html deriving (Show, Read)
 instance J.FromJSON GUIElementType where
   parseJSON (String sig) = return (read (unpack sig))
   parseJSON _ = mzero
@@ -120,7 +160,7 @@ _readChannel chan = do
 _writeChannel :: OneChannel -> GUIMessage -> IO ()
 _writeChannel chan msg = do
   gsList <- takeMVar chan
-  putMVar chan (gsList ++ [msg])
+  putMVar chan (gsList Prelude.++ [msg])
   return ()
   
   
@@ -142,7 +182,7 @@ _setValueSetFlag gsc flag = do
   putMVar (valueSetFlag gsc) flag
   return ()
   
--- external interface
+-- external interface for remaining code
 
 createChannel :: IO GSChannel
 createChannel = do
@@ -187,12 +227,42 @@ sendGS' :: GSChannel -> GUIMessage -> IO ()
 sendGS' gsc msg = _writeChannel (receiveFromGUI gsc) msg
 
 
--- Netwire Types
---
-type GUIWire a b = Wire () IO a b
+-------------------------------------
+-- Yesod widget parts of GUI elements
+-------------------------------------
 
--- Webgui - Yesod definitions
---
+{- $guilayout
+
+Yesod provides a mechanism, to combine Javascript, HTML and Templating to build a powerful abstraction for Widgets. Within HWebUI this 
+mechanism is used to build the GUI Layout from single elements. Basically, HWebUI provides Yesod widgets, which you can incorporate directly
+into HTML to obtain your GUI Layout. Those Yesod widgets include already all needed Javascript and HTML functionality for the individual
+GUI Elements. 
+
+Each HWebUI program has the following sections: settings, create layout, create functionality, run GUI. Here we focus on the section: create layout.
+
+Take as example the layout part of the currency converter application example:
+
+>    let guiLayout = do    
+>        wInitGUI port
+>        
+>        toWidget [hamlet|
+>              <H1>HWebUI - Currency Example
+>              <p>
+>                    |]
+>
+>        [whamlet|
+>           <table>
+>                   <tr>
+>                     <td> US Dollars
+>                     <td> ^{wTextBox "tb-dollars"}
+>                   <tr>
+>                     <td> Euros
+>                     <td> ^{wTextBox "tb-euros"} 
+>                             |]
+
+You can see nicely, how the guiLayout is composed from Yesod widgets. In the beginning the wInitGUI widget set up needed Javascript libraries. After that you can find GUI element widgets like \"wTextBox\" interspersed with regular HTML given in hamlet or whamlet notation. In whamlet templates it is even possible, to intermix Yesod widgets with HTML, which makes GUI layout a snap. 
+
+-}
 
 data Webgui = Webgui {
   channelMap :: (Map String GSChannel), 
@@ -237,8 +307,9 @@ jsUtils = [julius|
           |]
 
 
-                            
-wInitGUI :: Int -> Widget
+-- | Yesod widget to initialize needed Javascript functionality in the HTML code of the GUI. Provides Dojokit inclusion and communication with Haskell Yesod server over websockets.
+wInitGUI :: Int -- ^ port used to communicate with Haskell server
+            -> Widget -- ^ resulting Yesod widget
 wInitGUI port = do
   let portStr = show port
   addScriptRemote("http://ajax.googleapis.com/ajax/libs/dojo/1.9.0/dojo/dojo.js")
@@ -292,7 +363,10 @@ wInitGUI port = do
 
            |]
 
-wButton :: String -> String -> Widget
+-- | Yesod widget for the Button GUI Element
+wButton :: String -- ^ Element Id 
+           -> String -- ^ Label of the Button 
+           -> Widget -- ^ resulting Yesod Widget
 wButton wid label = do
   toWidget [julius|
             require(["dojo/ready", "dijit/form/Button", "dojo/dom", "dojo/json"], function(ready, Button, dom, JSON){
@@ -311,7 +385,9 @@ wButton wid label = do
            <button id="#{wid}" type="button">
             |]
 
-wCheckBox :: String -> Widget
+-- | Yesod widget for the CheckBox GUI Element
+wCheckBox :: String -- ^ Element Id
+             -> Widget -- ^ resulting Yesod Widget
 wCheckBox wid = do
   toWidget [julius|
             require(["dojo/ready", "dijit/form/CheckBox", "dojo/dom", "dojo/json"], function(ready, CheckBox, dom, JSON){
@@ -329,7 +405,9 @@ wCheckBox wid = do
            <input id="#{wid}" type="checkbox">
             |]
 
-wTextBox :: String -> Widget
+-- | Yesod widget for the TextBox GUI element
+wTextBox :: String -- ^ Element Id
+            -> Widget -- ^ resulting Yesod widget
 wTextBox wid = do
   toWidget [julius|
             require(["dojo/ready", "dijit/form/TextBox", "dojo/dom", "dojo/json"], function(ready, TextBox, dom, JSON){
@@ -348,7 +426,9 @@ wTextBox wid = do
            <input id="#{wid}" type="textbox">
             |]
 
-wNumberTextBox :: String -> Widget
+-- | Yesod widget for the NumberTextBox GUI element
+wNumberTextBox :: String -- ^ Element Id
+                  -> Widget -- ^ resulting Yesod widget
 wNumberTextBox wid = do
   toWidget [julius|
             require(["dojo/ready", "dijit/form/NumberTextBox", "dojo/dom", "dojo/json"], function(ready, NumberTextBox, dom, JSON){
@@ -369,13 +449,20 @@ wNumberTextBox wid = do
            <input id="#{wid}" type="text">
             |]
 
-wHtml :: String -> Widget
+-- | Yesod widget for the PlainHtml GUI element (an element which is used for dynamic HTML output
+wHtml :: String -- ^ Element Id
+         -> Widget -- ^ resulting Yesod widget
 wHtml wid = do
   toWidget [hamlet|
            <div id="#{wid}">
                    |]
 
-wRadioButton :: String -> String -> String -> Bool -> Widget
+-- | Yesod widget for the RadioButtion GUI element
+wRadioButton :: String -- ^ Element Id
+                -> String -- ^ Name
+                -> String -- ^ Value
+                -> Bool -- ^ Checked
+                -> Widget -- ^ resulting Yesod widget
 wRadioButton wid name value checked = do
   toWidget [julius|
             require(["dojo/ready", "dijit/form/RadioButton", "dojo/dom", "dojo/json"], function(ready, RadioButton, dom, JSON){
@@ -395,8 +482,9 @@ wRadioButton wid name value checked = do
            <input type="radio" id="#{wid}" name="#{name}">
             |]
 
-
-
+-----------------------
+-- misc Yesod functions
+-----------------------
 
 getGuioneR :: Handler RepHtml
 getGuioneR = do
@@ -470,7 +558,7 @@ messageSocket (Webgui gsmap gl) = do
   
   -- run forever loop, which checks incoming messages from the MVar lists and forwards them over the websockets interface
   
-  let gsList = toList gsmap
+  let gsList = Data.Map.toList gsmap
   _ <- liftIO . forkIO . forever $ do
                    sequence $ fmap (\(k, v) -> do
                         gmsMB <- liftIO $ receiveGS' v
@@ -488,8 +576,22 @@ messageSocket (Webgui gsmap gl) = do
   readSocket gsmap
   return ()
   
+------------------
+-- Running the GUI
+------------------
 
+{- $rungui
+  
+Two processes needs to be started to run the GUI functionality. The Yesod webserver and the netwire FRP loop. This is done by calling the functions as shown in the following example:
 
+>    -- run the webserver   
+>    forkChild $ runWebserver port gsmap2 guiLayout
+>    -- loop netwire
+>    loop1 theWire clockSession
+>    -- wait for the webserver to terminate
+>    waitForChildren
+
+-}
 
 runWebserver :: Int -> Map String GSChannel -> GWidget Webgui Webgui () -> IO ()
 runWebserver port gsmap guiLayout = do
@@ -530,10 +632,59 @@ forkFinally action and_then =
     
 
 
---
--- here we start with the netwire gui elements
--- 
+--------------------------------
+-- netwire parts of GUI elements
+--------------------------------
 
+{- $wiremechanism
+
+Obviously there are different possibilities to build a FRP based API for GUI elements with netwire. This implementation is in stage \"early prototype\" and might serve also as playground to test different designs in this area. The basic wires below all follow the same rules, with regards to notification of changes and setting of values. These rules make up a quite basic mechanism, which can be extended with additional netwire wrappers for more advanced purposes.
+
+/Basic wire behaviour:/
+
+Each GUI element, which carries a value of Type a (TextBox, CheckBox, ...) has an input type of (Maybe a) and an output type of a. To set a new value of the element as input a \"Just a\" needs to be given. A \"Nothing\" as input does not change the value from side of the program. As output the wire fires on each user caused change of the value, not on the case the value gets set by the program. If the value does not change, the wire inhibits (see netwire documentation for that). The reason to choose this model is simply that it is the most basic behaviour, which still contains all information needed and goes with one wire per element.
+
+/How to use the basic wires:/
+
+The following code from the example-arithmetic show how to create the wires, corresponding to the Yesod widgets.
+
+>    -- create netwire gui elements
+>    let gsmap = (fromList [])::(Map String GSChannel)
+>        
+>    (arg1, gsmap) <- textBoxW "arg1" gsmap
+>    (arg2, gsmap) <- textBoxW "arg2" gsmap
+>    (addB, gsmap) <- radioButtonW "rbadd" gsmap
+>    (subB, gsmap) <- radioButtonW "rbsub" gsmap
+>    (mulB, gsmap) <- radioButtonW "rbmul" gsmap
+>    (divB, gsmap) <- radioButtonW "rbdiv" gsmap
+>    (out1, gsmap) <- htmlW "out1" gsmap
+        
+The anchor between the Yesod widgets and the netwire wire is the \"Element Id\". After the wires have been created, they need to be wired in a way, which implements the wanted functionality. In case of the arithmetic example the wiring is done as follows:
+
+>    -- build the FRP wire, arrow notation
+>    
+>    let result = proc _ -> do
+>                              a1 <- hold "" arg1 -< Nothing
+>                              a2 <- hold "" arg2 -< Nothing
+> 			       badd <- hold True addB -< Nothing
+>      			       bsub <- hold False subB -< Nothing
+>                              bmul <- hold False mulB -< Nothing
+>                              bdiv <- hold False divB -< Nothing
+>                               
+>                              let op = if badd then (+) else (if bsub then (-) else (if bmul then (*) else (if bdiv then (/) else (\ x y -> 0.0))))
+>                              let res = op (atof a1) (atof a2)
+>
+>                              returnA -< res                             
+>
+>    let theWire = out1 .  ((Just . show) <$> result) . pure Nothing
+
+
+-}
+
+
+-- Netwire Types
+--
+type GUIWire a b = Wire () IO a b
 
 -- generic function to create a value wire, a value wire has type "GUIWire (Maybe a) a"
 
@@ -568,8 +719,22 @@ valueWireGen elid gsMap svalCreator svalExtractor guitype = do
                                          
   return (wire, gsMapNew)  
 
+-- | Basic wire for CheckBox GUI element functionality
+checkBoxW :: String -- ^ Element Id
+             -> Map String GSChannel -- ^ Channel Map (Internal)
+             -> IO (GUIWire (Maybe Bool) Bool, Map String GSChannel) -- ^ resulting Wire
 checkBoxW elid gsMap = valueWireGen elid gsMap SVBool (\svval -> let (SVBool bstate) = svval in bstate) CheckBox
+
+-- | Basic wire for RadioButton GUI element functionality
+radioButtonW :: String -- ^ Element Id
+             -> Map String GSChannel -- ^ Channel Map (Internal)
+             -> IO (GUIWire (Maybe Bool) Bool, Map String GSChannel) -- ^ resulting Wire
 radioButtonW elid gsMap = valueWireGen elid gsMap SVBool (\svval -> let (SVBool bstate) = svval in bstate) RadioButton
+
+-- | Basic wire for TextBox GUI element functionality
+textBoxW :: String -- ^ Element Id
+             -> Map String GSChannel -- ^ Channel Map (Internal)
+             -> IO (GUIWire (Maybe String) String, Map String GSChannel) -- ^ resulting Wire
 textBoxW elid gsMap = valueWireGen elid gsMap SVString (\svval -> let (SVString bstate) = svval in bstate) TextBox
 
 
@@ -600,6 +765,10 @@ numberTextBoxW' boxid channel = do
                                          return (Right s, s)   )
   return wire                                                         
   
+-- | Basic wire for NumberTextBox GUI element functionality
+numberTextBoxW :: String -- ^ Element Id
+             -> Map String GSChannel -- ^ Channel Map (Internal)
+             -> IO (GUIWire (Maybe Double) Double, Map String GSChannel) -- ^ resulting Wire
 numberTextBoxW elid gsMap = guiWireGen elid gsMap numberTextBoxW'
 
 htmlW' :: String -> GSChannel -> IO (GUIWire (Maybe String) String)
@@ -612,7 +781,12 @@ htmlW' boxid channel = do
                                    Nothing -> do
                                      return (Right s, s) )
   return wire                                                         
-  
+
+
+-- | Basic wire for HTML GUI element functionality (output element with dynamic HTML)
+htmlW :: String -- ^ Element Id
+             -> Map String GSChannel -- ^ Channel Map (Internal)
+             -> IO (GUIWire (Maybe String) String, Map String GSChannel) -- ^ resulting Wire
 htmlW elid gsMap = guiWireGen elid gsMap htmlW'
 
 -- button wire
@@ -629,5 +803,19 @@ buttonW' boxid channel = do
                                            return $ Left () )
   return wire                                                         
   
+-- | Basic wire for Button GUI element functionality (output element with dynamic HTML)
+buttonW :: String -- ^ Element Id
+             -> Map String GSChannel -- ^ Channel Map (Internal)
+             -> IO (GUIWire a a, Map String GSChannel) -- ^ resulting Wire
 buttonW elid gsMap = guiWireGen elid gsMap buttonW'
+
+-----------------------------------------------
+-- functions to extend basic wire functionality
+-----------------------------------------------
+
+{- $advancedwire
+
+to be done
+
+-}
 

@@ -24,9 +24,13 @@ atof instr = case (reads instr) of
 main :: IO ()
 main = do
     -- settings 
+    -----------
+  
     let port = 8080
         
-    -- create gui elements and layout
+    -- create layout 
+    ----------------
+        
     let guiLayout = do    
         wInitGUI port
         
@@ -48,16 +52,14 @@ main = do
 
 
 
-    -- create netwire gui elements
+    -- create functionality 
+    -----------------------
+        
     let gsmap = (fromList [])::(Map String GSChannel)
         
     (dollars, gsmap1) <- textBoxW "tb-dollars" gsmap
     (euros, gsmap2) <- textBoxW "tb-euros" gsmap1
         
-    -- run the webserver   
-    forkChild $ runWebserver port gsmap2 guiLayout
-     
-
     -- build the FRP wire, arrow notation, with recursion, using delay (!)
     
     -- get some double wire, sime like dollars, euros, just with doubles
@@ -82,9 +84,13 @@ main = do
           
     let theWire = runW
     
+    -- run the GUI
+    --------------
+        
+    -- run the webserver   
+    forkChild $ runWebserver port gsmap2 guiLayout
     -- loop netwire
     loop1 theWire clockSession
-    
     -- wait for the webserver to terminate
     waitForChildren
     return ()

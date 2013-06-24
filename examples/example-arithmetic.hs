@@ -65,16 +65,16 @@ main = do
     -- create netwire gui elements
     let gsmap = (fromList [])::(Map String GSChannel)
         
-    (arg1, gsmap1) <- textBoxW "arg1" gsmap
-    (arg2, gsmap2) <- textBoxW "arg2" gsmap1
-    (addB, gsmap3) <- radioButtonW "rbadd" gsmap2
-    (subB, gsmap4) <- radioButtonW "rbsub" gsmap3
-    (mulB, gsmap5) <- radioButtonW "rbmul" gsmap4
-    (divB, gsmap6) <- radioButtonW "rbdiv" gsmap5
-    (out1, gsmap7) <- htmlW "out1" gsmap6
+    (arg1, gsmap) <- textBoxW "arg1" gsmap
+    (arg2, gsmap) <- textBoxW "arg2" gsmap
+    (addB, gsmap) <- radioButtonW "rbadd" gsmap
+    (subB, gsmap) <- radioButtonW "rbsub" gsmap
+    (mulB, gsmap) <- radioButtonW "rbmul" gsmap
+    (divB, gsmap) <- radioButtonW "rbdiv" gsmap
+    (out1, gsmap) <- htmlW "out1" gsmap
         
     -- run the webserver   
-    forkChild $ runWebserver port gsmap7 guiLayout
+    forkChild $ runWebserver port gsmap guiLayout
      
 
     -- build the FRP wire, arrow notation
