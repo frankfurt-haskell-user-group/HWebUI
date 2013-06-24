@@ -24,7 +24,7 @@ replacing `cabal` by `cabal-dev` for a sandboxed install. See
 Demo
 ====
 
-Run HWebUI-example1 and point your browser to:
+Run HWebUI-example-arithmetic, HWebUI-example-currency or HWebUI-example-counter and point your browser to:
 
 http://localhost:8080/webgui
 
@@ -33,3 +33,7 @@ Wiki
 
 See also the [Wiki](https://github.com/althainz/HWebUI/wiki) for
 more information.
+
+Haddock
+=======
+Build haddocks and read them.
