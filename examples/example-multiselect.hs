@@ -53,7 +53,7 @@ main = do
         
     -- build the FRP wire, arrow notation, with recursion, using delay (!)
     let w1 = mselect . (once . ((pure $ Just ["one", "two", "three", "four"])) <|> (pure Nothing))
-    let w2 = output . ((Just . (Prelude.foldl (\a b -> a ++ " " ++ b) "Selected: ")) <$> id) . w1
+    let w2 = output . ((Just . (Prelude.foldl (\a b -> a ++ " " ++ (show b)) "Selected: ")) <$> id) . w1
     let theWire = w2
     
     -- run the GUI

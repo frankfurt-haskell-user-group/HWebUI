@@ -52,6 +52,7 @@ module HWebUI (
   
   -- ** Miscellaneous
   GSChannel,
+  GUIWire,
  
   ) where
 
@@ -91,7 +92,7 @@ instance J.ToJSON GUISignal where
   toJSON sig = String (pack (show sig))
 
 -- the values transmitted being the signal itself
-data GUISignalValue = SVDouble Double | SVString String | SVStringList [String] | SVInt Integer | SVBool Bool | SVEvent deriving (Show, Read)
+data GUISignalValue = SVDouble Double | SVString String | SVList [GUISignalValue] | SVInt Integer | SVBool Bool | SVEvent | SVNone deriving (Show, Read, Eq)
 
 instance J.FromJSON GUISignalValue where
   parseJSON (String "Event") = return SVEvent
@@ -101,11 +102,20 @@ instance J.FromJSON GUISignalValue where
   parseJSON (String s) = return $ SVString (unpack s)
   parseJSON (Array v) = 
     case Data.Vector.toList v of
-      (String s:ss) -> do
-        sr <- J.parseJSON (Array (Data.Vector.fromList ss))
-        let s1 = unpack s
-        return $ SVStringList (s1 : sr)
-      [] -> return $ SVStringList []
+        (s:ss) -> do
+          (SVList sr) <- J.parseJSON (Array (Data.Vector.fromList ss))
+          s1 <- J.parseJSON s
+          return $ SVList (s1 : sr)
+{-      (String s:ss) -> do
+        (SVList sr) <- J.parseJSON (Array (Data.Vector.fromList ss))
+        let s1 = SVString (unpack s)
+        return $ SVList (s1 : sr)
+      (Number (N.I s):ss) -> do
+        (SVList sr) <- J.parseJSON (Array (Data.Vector.fromList ss))
+        let s1 = SVInt s
+        return $ SVList (s1 : sr)
+-}
+        [] -> return $ SVList []
   parseJSON _ = mzero
   
 instance J.ToJSON GUISignalValue where
@@ -113,8 +123,9 @@ instance J.ToJSON GUISignalValue where
   toJSON (SVString s) = toJSON s
   toJSON (SVInt i) = toJSON i
   toJSON (SVBool b) = toJSON b
-  toJSON (SVStringList sl) = toJSON sl
+  toJSON (SVList sl) = toJSON sl
   toJSON (SVEvent) = String "Event"
+  toJSON (SVNone) = String "None"
 
 -- GuiElementId is the String identifying a GUI element
 type GUIElementId = String
@@ -169,19 +180,20 @@ _writeChannel chan msg = do
 data GSChannel = GSChannel {
   sendToGUI :: OneChannel,
   receiveFromGUI :: OneChannel,
-  valueSetFlag :: MVar Bool 
+  valueSetFlag :: MVar (Bool, GUISignalValue)
   }
                  
-_checkValueSetFlag :: GSChannel -> IO Bool
-_checkValueSetFlag gsc = do
-  flag <- takeMVar (valueSetFlag gsc)
-  putMVar (valueSetFlag gsc) flag
-  return flag
+_checkValueSetFlag :: GSChannel -> GUISignalValue -> IO Bool
+_checkValueSetFlag gsc valin = do
+  (flag, val) <- takeMVar (valueSetFlag gsc)
+  putMVar (valueSetFlag gsc) (flag, val)
+--  print $ (show valin) ++ " " ++ (show val) ++ " " ++ (show (valin == val))
+  return (flag && (valin == val))
   
-_setValueSetFlag :: GSChannel -> Bool -> IO ()
-_setValueSetFlag gsc flag = do
-  flag' <- takeMVar (valueSetFlag gsc)
-  putMVar (valueSetFlag gsc) flag
+_setValueSetFlag :: GSChannel -> Bool -> GUISignalValue -> IO ()
+_setValueSetFlag gsc flag val = do
+  (flag', val') <- takeMVar (valueSetFlag gsc)
+  putMVar (valueSetFlag gsc) (flag, val)
   return ()
   
 -- external interface for remaining code
@@ -190,7 +202,7 @@ createChannel :: IO GSChannel
 createChannel = do
   sendChannel <- newMVar ([]::[GUIMessage])
   receiveChannel <- newMVar ([]::[GUIMessage])
-  valueSetFlag <- newMVar False
+  valueSetFlag <- newMVar (False, SVNone)
   return $ GSChannel sendChannel receiveChannel valueSetFlag
   
 -- two types of message routines, one used from Server side and one used from gui side
@@ -203,9 +215,11 @@ receiveGS gsc = do
   msg <- _readChannel (receiveFromGUI gsc)
   case msg of
     Just gmsg -> do
-      flag <- _checkValueSetFlag gsc
+      flag <- _checkValueSetFlag gsc (gmValue gmsg)
       if flag then do
-        _setValueSetFlag gsc False
+        print $ "msg ignored: " ++ (show msg)
+        hFlush stdout
+        _setValueSetFlag gsc False SVNone
         return Nothing
         else do
           return $ Just gmsg
@@ -215,8 +229,10 @@ receiveGS gsc = do
 
 sendGS :: GSChannel -> GUIMessage -> IO ()
 sendGS gsc msg = do
+--                 print $ "msg set ignore: " ++ (show msg)
+--                 hFlush stdout                 
+                 _setValueSetFlag gsc True (gmValue msg)
                  _writeChannel (sendToGUI gsc) msg
-                 _setValueSetFlag gsc True
                  return ()
 
 -- used in the handlers to send over the wire towards the gui with JSON format
@@ -351,17 +367,27 @@ wInitGUI port = do
 
                                 if (message.gmType == "MultiSelect") 
                                 {
-                                   var sel = dijit.byId(message.gmId);
-                                   sel.destroyDescendants();
                                    var dsel = dom.byId(message.gmId);
+                                   var childs = dsel.children;
+                                   var lench = childs.length;
+
+                                   var n = 0;
                                    for(var i in message.gmValue)
                                    {
-                                       var c = domConstruct.create('option');
-                                       var v = message.gmValue[i];
-                                       c.innerHTML = v;
-                                       c.value = v;
-                                       dsel.appendChild(c);
+                                       var opt;
+                                       var val = message.gmValue[i];
+                                       if (n >= lench) {
+                                        opt = domConstruct.create('option');
+                                        dsel.appendChild(opt);
+                                       }
+                                       else {
+                                        opt = dsel.children[n];
+                                       }
+                                       opt.innerHTML = val;
+                                       opt.value = n;
+                                       n = n + 1;
                                    }
+
                                 }
                                 else if (message.gmType == "Html") 
                                 {
@@ -458,7 +484,9 @@ wMultiSelect wid = do
                                 // Create a text box programmatically:
                                 var myMultiSelect = new MultiSelect({
                                                              onChange: function(val){
-                                                               sendMessage("#{rawJS wid}", "OnChange", val, "MultiSelect");
+                                                                var intArr = new Array(val.length);
+                                                                for(var i=0; i<val.length; i++) { intArr[i] = parseInt(val[i], 10); }                        
+                                                                sendMessage("#{rawJS wid}", "OnChange", intArr, "MultiSelect");
                                                              },
                                                              name: '#{rawJS wid}'
                                                              }, dom.byId('#{rawJS wid}'));
@@ -539,8 +567,8 @@ getGuioneR = do
 receiveJson :: J.FromJSON a => WS.WebSockets WS.Hybi10 a
 receiveJson = do
   bs <- WS.receiveData
-  liftIO $ print bs
-  liftIO $ hFlush stdout
+--  liftIO $ print ("to browser: " ++ (show bs))
+--  liftIO $ hFlush stdout
   case J.decode' bs of
     Nothing -> sendJson (jsonError "invalid message") >> receiveJson
     Just a  -> return a
@@ -568,27 +596,18 @@ sockets y req
 readSocket :: Map String GSChannel -> WS.WebSockets WS.Hybi10 ()
 readSocket gsmap = do
     item <- receiveJson
-    sink <- WS.getSink
     case item of
          Just (GUIMessage gmId gmSignal gmValue gmType) -> do
-           
-                if True then do -- debug flag
-                  liftIO $ print ""
-                  liftIO $ print ("gui element: " ++ gmId)
-                  liftIO $ print "--------------------------"
-                  liftIO $ print ("signal: " ++ (show gmSignal))
-                  liftIO $ print ("value: " ++ (show gmValue))
-                  liftIO $ print ("type: " ++ (show gmType))
-                  liftIO $ hFlush stdout
-                  return ()
-                  else do
-                    return ()
+                
+--                liftIO $ print ("from browser: " ++ (show item))
+--                liftIO $ hFlush stdout
                     
                 liftIO $ sendGS' (gsmap ! gmId) (GUIMessage gmId gmSignal gmValue gmType)
                 return ()
          _ -> do
            return ()
            
+    liftIO $ threadDelay 1000
     readSocket gsmap
     return ()
   
@@ -611,11 +630,10 @@ messageSocket (Webgui gsmap gl) = do
                             return ()
                           Nothing -> do
                             return ()) gsList
+                   liftIO $ threadDelay 1000
                    return ()
                           
-  liftIO $ threadDelay 1000
-    
-  -- read sockets
+  -- start readsocket
   readSocket gsmap
   return ()
   
@@ -734,9 +752,9 @@ type GUIWire a b = Wire () IO a b
 valueWireGen :: String -- ^ Element Id 
                 -> Map String GSChannel -- ^ Channel Map
                 -> (a -> GUISignalValue) -- ^ svalue creation function
-                -> (GUISignalValue -> a) -- ^ svalue extraction function
+                -> (GUISignalValue -> b) -- ^ svalue extraction function
                 -> GUIElementType -- ^ type of GUI Element
-                -> IO (GUIWire (Maybe a) a , Map String GSChannel) -- ^ (wire, new Channel Map)
+                -> IO (GUIWire (Maybe a) b , Map String GSChannel) -- ^ (wire, new Channel Map)
                 
 valueWireGen elid gsMap svalCreator svalExtractor guitype = do
   
@@ -783,8 +801,11 @@ textBoxW elid gsMap = valueWireGen elid gsMap SVString (\svval -> let (SVString 
 -- | Basic wire for MultiSelect GUI element functionality
 multiSelectW :: String -- ^ Element Id
              -> Map String GSChannel -- ^ Channel Map (Internal)
-             -> IO (GUIWire (Maybe [String]) [String], Map String GSChannel) -- ^ resulting Wire
-multiSelectW elid gsMap = valueWireGen elid gsMap SVStringList (\svval -> let (SVStringList bstate) = svval in bstate) MultiSelect
+             -> IO (GUIWire (Maybe [String]) [Integer], Map String GSChannel) -- ^ resulting Wire
+multiSelectW elid gsMap = valueWireGen elid gsMap (\list -> SVList $ fmap SVString list) (\svlist -> let  
+                                                                                             (SVList rval) = svlist 
+                                                                                             rval' = fmap (\svval -> let (SVInt intval) = svval in intval) rval 
+                                                                                             in rval')  MultiSelect
 
 
 guiWireGen :: String -> Map String GSChannel -> (String -> GSChannel -> IO (GUIWire a b)) -> IO (GUIWire a b, Map String GSChannel)
