@@ -21,10 +21,10 @@ If you don't want to change your Haskell environment, consider
 replacing `cabal` by `cabal-dev` for a sandboxed install. See
 [hackage/cabal-dev](http://hackage.haskell.org/package/cabal-dev).
 
-Demo
-====
+Examples/Demo
+=============
 
-Run HWebUI-example-arithmetic, HWebUI-example-currency, HWebUI-example-counter or HWebUI-example-multiselect and point your browser to:
+Run HWebUI-example-arithmetic, HWebUI-example-currency, HWebUI-example-counter, HWebUI-example-multiselect or HWebUI-example-crud and point your browser to:
 
 http://localhost:8080/webgui
 
