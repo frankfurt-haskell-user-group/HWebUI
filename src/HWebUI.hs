@@ -92,11 +92,11 @@ instance J.ToJSON GUISignal where
   toJSON sig = String (pack (show sig))
 
 -- the values transmitted being the signal itself
-data GUISignalValue = SVDouble Double | SVString String | SVList [GUISignalValue] | SVInt Integer | SVBool Bool | SVEvent | SVNone deriving (Show, Read, Eq)
+data GUISignalValue = SVDouble Double | SVString String | SVList [GUISignalValue] | SVInt Int | SVBool Bool | SVEvent | SVNone deriving (Show, Read, Eq)
 
 instance J.FromJSON GUISignalValue where
   parseJSON (String "Event") = return SVEvent
-  parseJSON (Number (N.I i)) = return $ SVInt i
+  parseJSON (Number (N.I i)) = return $ SVInt (fromIntegral i)
   parseJSON (Number (N.D d)) = return $ SVDouble d
   parseJSON (Bool b) = return $ SVBool b
   parseJSON (String s) = return $ SVString (unpack s)
@@ -387,7 +387,10 @@ wInitGUI port = do
                                        opt.value = n;
                                        n = n + 1;
                                    }
-
+                                   for (i = n; i < lench; i++ )
+                                   {
+                                      dsel.removeChild(dsel.children[n]);
+                                   }
                                 }
                                 else if (message.gmType == "Html") 
                                 {
@@ -476,8 +479,9 @@ wTextBox wid = do
 
 -- | Yesod widget for the MultiSelect GUI element
 wMultiSelect :: String -- ^ Element Id
+            -> Int -- ^ Width of widget
             -> Widget -- ^ resulting Yesod widget
-wMultiSelect wid = do
+wMultiSelect wid width = do
   toWidget [julius|
             require(["dojo/ready", "dijit/form/MultiSelect", "dojo/dom", "dojo/json"], function(ready, MultiSelect, dom, JSON){
                        ready(function(){
@@ -488,6 +492,7 @@ wMultiSelect wid = do
                                                                 for(var i=0; i<val.length; i++) { intArr[i] = parseInt(val[i], 10); }                        
                                                                 sendMessage("#{rawJS wid}", "OnChange", intArr, "MultiSelect");
                                                              },
+                                                             style: { "width" : "#{rawJS (show width)}px" },
                                                              name: '#{rawJS wid}'
                                                              }, dom.byId('#{rawJS wid}'));
                        });
@@ -801,7 +806,7 @@ textBoxW elid gsMap = valueWireGen elid gsMap SVString (\svval -> let (SVString 
 -- | Basic wire for MultiSelect GUI element functionality
 multiSelectW :: String -- ^ Element Id
              -> Map String GSChannel -- ^ Channel Map (Internal)
-             -> IO (GUIWire (Maybe [String]) [Integer], Map String GSChannel) -- ^ resulting Wire
+             -> IO (GUIWire (Maybe [String]) [Int], Map String GSChannel) -- ^ resulting Wire
 multiSelectW elid gsMap = valueWireGen elid gsMap (\list -> SVList $ fmap SVString list) (\svlist -> let  
                                                                                              (SVList rval) = svlist 
                                                                                              rval' = fmap (\svval -> let (SVInt intval) = svval in intval) rval 

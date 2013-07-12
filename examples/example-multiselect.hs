@@ -40,7 +40,7 @@ main = do
               <p>
                     |]
 
-        wMultiSelect "mselect"
+        wMultiSelect "mselect" 200
         wHtml "output"
 
     -- create functionality 

@@ -67,3 +67,14 @@ executable HWebUI-example-multiselect
                        HWebUI,
                        netwire,
                        yesod < 1.2
+
+executable HWebUI-example-crud
+  hs-source-dirs:      examples
+  main-is:             example-crud.hs
+  build-depends:       base,
+                       containers,
+                       HWebUI,
+                       netwire,
+                       yesod < 1.2,
+                       lens
+
