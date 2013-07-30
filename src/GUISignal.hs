@@ -3,57 +3,8 @@
 
 {- | HWebUI is providing FRP-based GUI functionality for Haskell by utilizing the Web-Browser. It is build on top of Yesod for the Web technologies and on netwire for the FRP interface. The status is \"early prototype\". The implementation uses a Javascript library (Dojo toolkit) for providing typical widgets, HTML for the layout of the widgets. With Javascript and websockets events are transferred between the Web and the Haskell world. This happens behind the scenes. The Haskell programmer is using a FRP based interface. See also: <http://www.github.com/althainz/HWebUI>.
 -}
-module HWebUI (
-  -- * Creating the GUI Layout with Yesod Widgets
-  
-  -- ** How HWebUI Yesod widgets can be used 
-  -- $guilayout
-  
-  -- ** Initializing Yesod widget
-  wInitGUI,
- 
-  -- ** The Yesod widgets
-  wButton,
-  wCheckBox,
-  wHtml,
-  wMultiSelect,
-  wNumberTextBox,
-  wRadioButton,
-  wTextBox,
-  
-  -- * Creating the GUI Functionality with FRP
-  
-  -- ** How HWebUI wires (based on netwire) work
-  -- $wiremechanism
-  
-  -- ** The netwire wires (basic functionality)
-  buttonW,
-  checkBoxW,
-  htmlW,
-  multiSelectW,
-  numberTextBoxW,
-  radioButtonW,
-  textBoxW,
-  
-  -- ** functions to extend basic wires with additional functionality
-  -- $advancedwire
-  
-  
-  
-  -- * Running the GUI
-  
-  -- ** How to run the GUI
-  -- $rungui
-  
-  -- ** Functions to run the GUI  
-  forkChild,
-  runWebserver,
-  waitForChildren,
-  
-  -- ** Miscellaneous
-  GSChannel,
-  GUIWire,
- 
+module GUISignal (
+  GUISignal (..)
   ) where
 
 import Yesod
@@ -75,11 +26,20 @@ import Data.Text
 import Data.Vector (toList, fromList)
 import Data.Attoparsec.Number as N
 
-import GUIValue
-import GUIEvent
 import GUICommand
-import GUISignal
-import Messaging
-import Widgets
-import Server
-import Wires
+import GUIEvent
+
+
+-------------------------------
+-- GUI Signal
+-------------------------------
+
+-- A GUI Signal is either an event coming from the GUI Element upon user interaction or a command, send to the Element
+
+data GUISignal = GUIEvent GUIEvent  | GUICommand GUICommand deriving (Show, Read, Eq)
+instance J.FromJSON GUISignal where
+  parseJSON (String sig) = return (read (unpack sig))
+  parseJSON _ = mzero
+instance J.ToJSON GUISignal where
+  toJSON sig = String (pack (show sig))
+

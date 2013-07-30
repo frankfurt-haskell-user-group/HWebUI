@@ -17,7 +17,7 @@ source-repository head
 
 library
   hs-source-dirs:      src
-  exposed-modules:     HWebUI
+  exposed-modules:     HWebUI, GUIValue, GUIEvent, GUICommand, GUISignal, Messaging, Server, Widgets, Wires
   -- other-modules:       
   build-depends:       aeson,
                        attoparsec,
