@@ -1,6 +1,8 @@
 {-# LANGUAGE TemplateHaskell, QuasiQuotes, OverloadedStrings, TypeFamilies, MultiParamTypeClasses, Arrows #-}
 
 
+{- | GUIValue is an internal implementation module of "HWebUI". "HWebUI" is providing FRP-based GUI functionality for Haskell by utilizing the Web-Browser. See module "HWebUI" for main documentation. 
+-}
 module GUIValue (
   GUIValue (..)
   ) where
@@ -24,12 +26,7 @@ import Data.Text
 import Data.Vector (toList, fromList)
 import Data.Attoparsec.Number as N
 
--------------------------------
--- GUIValue
--------------------------------
-
--- a GUI Value is a value modified by a GUI element
-
+-- | A GUI value is the content of a GUI element, a String, a Bool a Number or similar. Compound types are realised as lists of values. This data type is used in 'GUIMessage' to encode different values in a common data type. 
 data GUIValue = SVDouble Double | SVString String | SVList [GUIValue] | SVInt Int | SVBool Bool | SVEvent | SVNone deriving (Show, Read, Eq)
 
 instance J.FromJSON GUIValue where

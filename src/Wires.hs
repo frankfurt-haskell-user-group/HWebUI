@@ -1,11 +1,9 @@
 {-# LANGUAGE TemplateHaskell, QuasiQuotes, OverloadedStrings, TypeFamilies, MultiParamTypeClasses, Arrows #-}
 
-
-{- | HWebUI is providing FRP-based GUI functionality for Haskell by utilizing the Web-Browser. It is build on top of Yesod for the Web technologies and on netwire for the FRP interface. The status is \"early prototype\". The implementation uses a Javascript library (Dojo toolkit) for providing typical widgets, HTML for the layout of the widgets. With Javascript and websockets events are transferred between the Web and the Haskell world. This happens behind the scenes. The Haskell programmer is using a FRP based interface. See also: <http://www.github.com/althainz/HWebUI>.
+{- | Wires is an internal implementation module of "HWebUI". "HWebUI" is providing FRP-based GUI functionality for Haskell by utilizing the Web-Browser. See module "HWebUI" for main documentation. 
 -}
 module Wires (
   
-  -- ** The netwire wires (basic functionality)
   buttonW,
   checkBoxW,
   htmlW,
@@ -13,6 +11,8 @@ module Wires (
   numberTextBoxW,
   radioButtonW,
   textBoxW,
+  
+  loopHWebUIWire,
   
   GUIWire
   ) where
@@ -44,55 +44,6 @@ import Messaging
 import Widgets
 import Server
 
---------------------------------
--- netwire parts of GUI elements
---------------------------------
-
-{- $wiremechanism
-
-Obviously there are different possibilities to build a FRP based API for GUI elements with netwire. This implementation is in stage \"early prototype\" and might serve also as playground to test different designs in this area. The basic wires below all follow the same rules, with regards to notification of changes and setting of values. These rules make up a quite basic mechanism, which can be extended with additional netwire wrappers for more advanced purposes.
-
-/Basic wire behaviour:/
-
-Each GUI element, which carries a value of Type a (TextBox, CheckBox, ...) has an input type of (Maybe a) and an output type of a. To set a new value of the element as input a \"Just a\" needs to be given. A \"Nothing\" as input does not change the value from side of the program. As output the wire fires on each user caused change of the value, not on the case the value gets set by the program. If the value does not change, the wire inhibits (see netwire documentation for that). The reason to choose this model is simply that it is the most basic behaviour, which still contains all information needed and goes with one wire per element.
-
-/How to use the basic wires:/
-
-The following code from the example-arithmetic show how to create the wires, corresponding to the Yesod widgets.
-
->    -- create netwire gui elements
->    let gsmap = (fromList [])::(Map String GSChannel)
->        
->    (arg1, gsmap) <- textBoxW "arg1" gsmap
->    (arg2, gsmap) <- textBoxW "arg2" gsmap
->    (addB, gsmap) <- radioButtonW "rbadd" gsmap
->    (subB, gsmap) <- radioButtonW "rbsub" gsmap
->    (mulB, gsmap) <- radioButtonW "rbmul" gsmap
->    (divB, gsmap) <- radioButtonW "rbdiv" gsmap
->    (out1, gsmap) <- htmlW "out1" gsmap
-        
-The anchor between the Yesod widgets and the netwire wire is the \"Element Id\". After the wires have been created, they need to be wired in a way, which implements the wanted functionality. In case of the arithmetic example the wiring is done as follows:
-
->    -- build the FRP wire, arrow notation
->    
->    let result = proc _ -> do
->                              a1 <- hold "" arg1 -< Nothing
->                              a2 <- hold "" arg2 -< Nothing
-> 			       badd <- hold True addB -< Nothing
->      			       bsub <- hold False subB -< Nothing
->                              bmul <- hold False mulB -< Nothing
->                              bdiv <- hold False divB -< Nothing
->                               
->                              let op = if badd then (+) else (if bsub then (-) else (if bmul then (*) else (if bdiv then (/) else (\ x y -> 0.0))))
->                              let res = op (atof a1) (atof a2)
->
->                              returnA -< res                             
->
->    let theWire = out1 .  ((Just . show) <$> result) . pure Nothing
-
-
--}
-
 
 -- Netwire Types
 --
@@ -115,10 +66,10 @@ valueWireGen elid gsMap svalCreator svalExtractor guitype = do
   let wire = mkFixM  (\t inVal -> do
                                                 case inVal of
                                                   Just bState -> do
-                                                    sendGS channel (GUIMessage elid (GUICommand SetValue) (svalCreator bState) guitype)
+                                                    sendGMWriteChannel channel (GUIMessage elid (GUICommand SetValue) (svalCreator bState) guitype)
                                                     return $ Left ()
                                                   Nothing -> do
-                                                    rcv <- receiveGS channel
+                                                    rcv <- receiveGMReadChannel channel
                                                     case rcv of
                                                       Just guimsg -> do
                                                         if (gmSignal guimsg) == (GUIEvent OnChange) then do
@@ -171,10 +122,10 @@ numberTextBoxW' boxid channel = do
   let wire =  mkStateM 0 (\t (trigger, s) -> do
                                  case trigger of
                                    Just bState -> do
-                                     sendGS channel (GUIMessage boxid (GUICommand SetValue) (SVDouble bState) NumberTextBox)
+                                     sendGMWriteChannel channel (GUIMessage boxid (GUICommand SetValue) (SVDouble bState) NumberTextBox)
                                      return (Right bState, bState)
                                    Nothing -> do
-                                     rcv <- receiveGS channel
+                                     rcv <- receiveGMReadChannel channel
                                      case rcv of
                                        Just guimsg -> do
                                          if (gmSignal guimsg) == (GUIEvent OnChange) then do
@@ -197,7 +148,7 @@ htmlW' boxid channel = do
   let wire =  mkStateM "" (\t (trigger, s) -> do
                                  case trigger of
                                    Just bState -> do
-                                     sendGS channel (GUIMessage boxid (GUICommand SetValue) (SVString bState) Html)
+                                     sendGMWriteChannel channel (GUIMessage boxid (GUICommand SetValue) (SVString bState) Html)
                                      return (Right bState, bState)
                                    Nothing -> do
                                      return (Right s, s) )
@@ -216,7 +167,7 @@ htmlW elid gsMap = guiWireGen elid gsMap htmlW'
 buttonW' :: String -> GSChannel -> IO (GUIWire a a)
 buttonW' boxid channel = do
   let wire =  mkFixM (\t var -> do
-                                     rcv <- receiveGS channel
+                                     rcv <- receiveGMReadChannel channel
                                      case rcv of
                                        Just gs -> do
                                            return $ Right var
@@ -230,13 +181,12 @@ buttonW :: String -- ^ Element Id
              -> IO (GUIWire a a, Map String GSChannel) -- ^ resulting Wire
 buttonW elid gsMap = guiWireGen elid gsMap buttonW'
 
------------------------------------------------
--- functions to extend basic wire functionality
------------------------------------------------
 
-{- $advancedwire
 
-to be done
+_loopAWire wire session = do
+    (r, wire',  session') <- stepSession wire session ()
+    threadDelay 10000
+    _loopAWire wire' session'
+    return ()
 
--}
-
+loopHWebUIWire theWire = _loopAWire theWire clockSession

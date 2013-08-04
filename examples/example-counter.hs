@@ -9,13 +9,6 @@ import Data.Map
 
 import HWebUI
 
-loop1 wire session = do
-    (r, wire',  session') <- stepSession wire session ()
-    threadDelay 10000
-    loop1 wire' session'
-    return ()
-
-      
 main :: IO ()
 main = do
     -- settings 
@@ -47,9 +40,6 @@ main = do
     (down, gsmap) <- buttonW "Button2" gsmap
     (output, gsmap) <- htmlW "out1" gsmap
         
-    -- run the webserver   
-    forkChild $ runWebserver port gsmap guiLayout
-     
     -- build the FRP wire, we need a counter, which increases a value at each up event and decreases it at each down event
     
     -- this wire counts from 0, part of prefab netwire Wires
@@ -64,11 +54,9 @@ main = do
     -- set the output on change only
     let theWire = output . changed . strw1 
     
-    -- loop netwire
-    loop1 theWire clockSession
-    
-    -- wait for the webserver to terminate
-    waitForChildren
+    -- run the webserver, the netwire loop and wait for termination   
+    runHWebUI port gsmap guiLayout theWire
+
     return ()
     
 

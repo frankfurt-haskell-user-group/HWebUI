@@ -12,12 +12,6 @@ import Control.Lens
 
 import HWebUI
 
-loop1 wire session = do
-    (r, wire',  session') <- stepSession wire session ()
-    threadDelay 10000
-    loop1 wire' session'
-    return ()
-
 -- a double conversion function
 atof :: String -> Double
 atof instr = case (reads instr) of
@@ -173,15 +167,10 @@ main = do
     
     let theWire = w2
     
-    -- run the GUI
-    --------------
-        
-    -- run the webserver   
-    forkChild $ runWebserver port gsmap guiLayout
-    -- loop netwire
-    loop1 theWire clockSession
-    -- wait for the webserver to terminate
-    waitForChildren
+    
+    -- run the webserver, the netwire loop and wait for termination   
+    runHWebUI port gsmap guiLayout theWire
+    
     return ()
     
     

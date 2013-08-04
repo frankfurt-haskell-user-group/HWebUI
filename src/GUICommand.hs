@@ -1,6 +1,8 @@
 {-# LANGUAGE TemplateHaskell, QuasiQuotes, OverloadedStrings, TypeFamilies, MultiParamTypeClasses, Arrows #-}
 
 
+{- | GUICommand is an internal implementation module of "HWebUI". "HWebUI" is providing FRP-based GUI functionality for Haskell by utilizing the Web-Browser. See module "HWebUI" for main documentation. 
+-}
 module GUICommand (
   GUICommand (..)
   ) where
@@ -24,13 +26,9 @@ import Data.Text
 import Data.Vector (toList, fromList)
 import Data.Attoparsec.Number as N
 
--------------------------------
--- GUICommand
--------------------------------
-
-
--- purpose of signal, currently only value setting or change notification are used
-data GUICommand = SetValue deriving (Show, Read, Eq)
+-- | The GUICommand is a GUISignal which is send towards the GUI element and which signals a command to the element
+data GUICommand = SetValue -- ^ set the value of the GUI element
+                deriving (Show, Read, Eq)
 instance J.FromJSON GUICommand where
   parseJSON (String sig) = return (read (unpack sig))
   parseJSON _ = mzero

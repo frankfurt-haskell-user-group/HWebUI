@@ -1,20 +1,22 @@
 {-# LANGUAGE TemplateHaskell, QuasiQuotes, OverloadedStrings, TypeFamilies, MultiParamTypeClasses, Arrows #-}
 
 
+{- | Messaging is an internal implementation module of "HWebUI". "HWebUI" is providing FRP-based GUI functionality for Haskell by utilizing the Web-Browser. See module "HWebUI" for main documentation. 
+-}
 module Messaging (
   
+  -- * Data Types, used for messages and message buffers
   GUIElementId,
   GUIElementType (..),
   GUIMessage (..),
-  
   GSChannel,
   
+  -- * Functions to handle messages and message buffers
   createChannel,
-  receiveGS,
-  sendGS,
-  receiveGS',
-  sendGS'
-  
+  receiveGMReadChannel,  
+  receiveGMWriteChannel,
+  sendGMWriteChannel,
+  sendGMReadChannel
  
   ) where
 
@@ -42,19 +44,11 @@ import GUIEvent
 import GUICommand
 import GUISignal
 
--------------------------------
--- communication infrastructure
--------------------------------
 
--- there are two communication channels, one from the web javascript to the backends yesod server, another one 
--- from the backend yesod server to the GUI FRP frontend process. For both different types of messages are used.
--- In the first case, messages are translated to JSON for sending over websockets.
-
-
--- GuiElementId is the String identifying a GUI element
+-- | String identifying a GUI element
 type GUIElementId = String
 
--- GUIElementType is the type of GUI Element
+-- | The type of GUI Element
 data GUIElementType = Button | CheckBox | TextBox | MultiSelect | NumberTextBox | RadioButton | Html deriving (Show, Read)
 instance J.FromJSON GUIElementType where
   parseJSON (String sig) = return (read (unpack sig))
@@ -62,13 +56,13 @@ instance J.FromJSON GUIElementType where
 instance J.ToJSON GUIElementType where
   toJSON sig = String (pack (show sig))
  
--- The Messages, sended over the websocket wires
 
+-- | A GUI message, used to communicate between Browser and Haskell server
 data GUIMessage = GUIMessage {
-  gmId :: GUIElementId,
-  gmSignal :: GUISignal,
-  gmValue :: GUIValue,
-  gmType :: GUIElementType
+  gmId :: GUIElementId, -- ^ the unique id of the GUI element
+  gmSignal :: GUISignal, -- ^ the signal sent by this message, either a command towards the GUI element or an Event coming from it
+  gmValue :: GUIValue, -- ^ the value associated with the command or event
+  gmType :: GUIElementType -- ^ the type of the GUI element
   } deriving Show
 
 instance J.FromJSON GUIMessage where
@@ -81,13 +75,17 @@ instance J.FromJSON GUIMessage where
 instance J.ToJSON GUIMessage where
   toJSON (GUIMessage gmId gmSignal gmValue gmType) = Yesod.object ["gmId" .= gmId, "gmSignal" .= gmSignal, "gmValue" .= gmValue, "gmType" .= gmType]
   
--- communication between GUI Frontend and webserver
+-- | A two sided message buffer structure  
+data GSChannel = GSChannel {
+  sendToGUI :: MVar [GUIMessage],
+  receiveFromGUI :: MVar [GUIMessage],
+  valueSetFlag :: MVar (Bool, GUIValue)
+  }
+                 
+
+-- internal impelementation 
   
--- internal data
-
-type OneChannel = MVar [GUIMessage]
-
-_readChannel :: OneChannel -> IO (Maybe GUIMessage)
+_readChannel :: MVar [GUIMessage] -> IO (Maybe GUIMessage)
 _readChannel chan = do
   gsList <- takeMVar chan
   let (gsListNew, rval) = case gsList of
@@ -96,19 +94,12 @@ _readChannel chan = do
   putMVar chan gsListNew
   return rval
   
-_writeChannel :: OneChannel -> GUIMessage -> IO ()
+_writeChannel :: MVar [GUIMessage] -> GUIMessage -> IO ()
 _writeChannel chan msg = do
   gsList <- takeMVar chan
   putMVar chan (gsList Prelude.++ [msg])
   return ()
   
-  
-data GSChannel = GSChannel {
-  sendToGUI :: OneChannel,
-  receiveFromGUI :: OneChannel,
-  valueSetFlag :: MVar (Bool, GUIValue)
-  }
-                 
 _checkValueSetFlag :: GSChannel -> GUIValue -> IO Bool
 _checkValueSetFlag gsc valin = do
   (flag, val) <- takeMVar (valueSetFlag gsc)
@@ -124,6 +115,7 @@ _setValueSetFlag gsc flag val = do
   
 -- external interface for remaining code
 
+-- | creates a message buffer (Channel) with two way communication
 createChannel :: IO GSChannel
 createChannel = do
   sendChannel <- newMVar ([]::[GUIMessage])
@@ -131,13 +123,9 @@ createChannel = do
   valueSetFlag <- newMVar (False, SVNone)
   return $ GSChannel sendChannel receiveChannel valueSetFlag
   
--- two types of message routines, one used from Server side and one used from gui side
-
--- used in the netwire server code, to receive and send to and from gui
--- contains logic, to prevent a SetMessage to trigger a changed message
-  
-receiveGS :: GSChannel -> IO (Maybe GUIMessage)
-receiveGS gsc = do
+-- | read the message buffer (Channel) during reception of a GUI message from the Browser GUI element
+receiveGMReadChannel :: GSChannel -> IO (Maybe GUIMessage)
+receiveGMReadChannel gsc = do
   msg <- _readChannel (receiveFromGUI gsc)
   case msg of
     Just gmsg -> do
@@ -153,20 +141,20 @@ receiveGS gsc = do
       return Nothing
              
 
-sendGS :: GSChannel -> GUIMessage -> IO ()
-sendGS gsc msg = do
+-- | write the message buffer (Channel) during sending of a GUI message towards the Browser GUI element
+sendGMWriteChannel :: GSChannel -> GUIMessage -> IO ()
+sendGMWriteChannel gsc msg = do
 --                 print $ "msg set ignore: " ++ (show msg)
 --                 hFlush stdout                 
                  _setValueSetFlag gsc True (gmValue msg)
                  _writeChannel (sendToGUI gsc) msg
                  return ()
 
--- used in the handlers to send over the wire towards the gui with JSON format
--- plainly sends and receives, no additional logic
+-- | read the message buffer (Channel) during sending of a GUI message towards the Browser GUI element, this is used by the "Server" module to pass all messages over the websocket to the Browser.
+sendGMReadChannel :: GSChannel -> IO (Maybe GUIMessage)
+sendGMReadChannel gsc = _readChannel (sendToGUI gsc)
 
-receiveGS' :: GSChannel -> IO (Maybe GUIMessage)
-receiveGS' gsc = _readChannel (sendToGUI gsc)
-
-sendGS' :: GSChannel -> GUIMessage -> IO ()
-sendGS' gsc msg = _writeChannel (receiveFromGUI gsc) msg
+-- | write the message buffer (Channel) during reception of a GUI message from the Browser GUI element, this is used by the "Server" module to provide the received data towards the Channels and the FRP GUI elements.
+receiveGMWriteChannel :: GSChannel -> GUIMessage -> IO ()
+receiveGMWriteChannel gsc msg = _writeChannel (receiveFromGUI gsc) msg
 
