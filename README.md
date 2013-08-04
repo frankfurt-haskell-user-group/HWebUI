@@ -36,4 +36,10 @@ more information.
 
 Haddock
 =======
-Build haddocks and read them.
+Build haddocks and read them. The haddock documentation has improved a lot and now contains usage examples, overview explanations and some insight into implementation details. Simply build with 
+
+~~~
+cabal haddock
+~~~
+
+and guide your browser to the result files in (http://dist/doc/html/HWebUI/frames.html).
