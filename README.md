@@ -15,7 +15,7 @@ cabal install
 ~~~
 
 This installs HWebUI with all its dependencies and also the
-HWebUI-example1 executable.
+HWebUI example executables.
 
 If you don't want to change your Haskell environment, consider
 replacing `cabal` by `cabal-dev` for a sandboxed install. See
@@ -28,18 +28,13 @@ Run HWebUI-example-arithmetic, HWebUI-example-currency, HWebUI-example-counter, 
 
 http://localhost:8080/webgui
 
-Wiki
-====
+Furhter Information
+===================
 
-See also the [Wiki](https://github.com/althainz/HWebUI/wiki) for
-more information.
-
-Haddock
-=======
-Build haddocks and read them. The haddock documentation has improved a lot and now contains usage examples, overview explanations and some insight into implementation details. Simply build with 
+Haddock annotations are available in the source code, to build them run:
 
 ~~~
 cabal haddock
 ~~~
 
-and guide your browser to the result files in (http://dist/doc/html/HWebUI/frames.html).
+alternatively the pre-build haddock docu is available here: http://althainz.github.io/HWebUI/HWebUI.html.
