@@ -60,6 +60,9 @@ module HWebUI (
   -- ** The background server process (built on top of Yesod)
   -- $backgroundserver
   
+  -- ** Widget Implementation
+  -- $widgets
+  
   
   
   
@@ -215,5 +218,25 @@ The function which runs the background server is called 'runWebserver' and it in
 The functions which implement the websocket communication are the 'socketAcceptFunction', 'readSocketLoop' and the 'socketHandlingFunction', which spawns the write loop for writing towards the socket and then calls the 'readSocketLoop' function. The 'socketAcceptFunction' is called given as the anchor function in the websocket configuration inside the 'runWebserver' function.
 
 The basic Yesod webserver is implemented the usual way, two annotation may be made: there is a specific base layout defined to include the Dojokit "claro" style in the body element of the HTML page. Also the layout of the one and only render page is not hard coded but given as a paramter to the configuration, so that it can be implemented later, as can be seen in the examples.
+
+-}
+
+{- $widgets
+
+The functionality of a widget is a complex combination of different implementation technologies, which all interwork. In the Browser a javascript Dojokit widget is sending and receiving Javascript events. Also in the Browser additional Javascript code transform those events and commands in a format which can be transferred to the backend. Then those events are transferred with the above described messaging mechanism towards the Haskell backend. Finally they are processed and steared towards the corresponding Haskell FRP widget implementation. Below a short description about how to implement a widget might shed some light on the interworking mechanisms.
+
+/How to implement a widget:/
+
+To implement a widget the following steps needs to be done:
+
+- Think about the type of the widget. The most widgets which carry a value of type \"a\" understand commands of the format \"Maybe a\" to set the value of the widget and send changed values of simply type \"a\". In case of more complex widgets additional information might be included in this value, for example the MultiSelect widget encodes also the selection status in the value.
+
+- Create a Yesod widget for the widget in the "Widgets" module. The Yesod widgets carry the Javascript code for the widget which sends messages upon a change in the widget. For this a \"onChange\" function needs to be coded in the Javascript of the Yesod widget. This function should send the changed value to the Haskell backend by calling the \"sendMessage\" function. In addition the Browser based widget needs to be updated in case a command message to do so is sent from the Haskell backend. To make this happen the 'wInitGUI' function needs to be updated to include widget specific behaviour for the new widget in the \"onMessage\" function.
+
+- Create a netwire wire based widget in the "Wires" module. You might be able to use the generic implementation of the 'valueWireGen' function in case the widget is of a value type as described above. Sometimes the complete wire needs to be coded independently. The functionality needed for a wire representing a widget in FRP code is to receive messages from the channel and to update the state or to send messages over hte channel in case the value is updated by FRP mechanisms. Look at 'valueWireGen' to get a better understanding of that.
+
+- Implement a test case to test your new widget.
+
+
 
 -}
