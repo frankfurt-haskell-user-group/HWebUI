@@ -28,7 +28,7 @@ Run HWebUI-example-arithmetic, HWebUI-example-currency, HWebUI-example-counter, 
 
 http://localhost:8080/webgui
 
-Furhter Information
+Further Information
 ===================
 
 Haddock annotations are available in the source code, to build them run:
