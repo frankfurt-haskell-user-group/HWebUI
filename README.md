@@ -37,4 +37,4 @@ Haddock annotations are available in the source code, to build them run:
 cabal haddock
 ~~~
 
-alternatively the pre-build haddock docu is available here: http://althainz.github.io/HWebUI/HWebUI.html.
+alternatively the pre-build haddock docu is available here: http://frankfurt-haskell-user-group.github.io/HWebUI/HWebUI.html.
