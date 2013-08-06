@@ -103,12 +103,17 @@ textBoxW elid gsMap = valueWireGen elid gsMap SVString (\svval -> let (SVString 
 -- | Basic wire for MultiSelect GUI element functionality
 multiSelectW :: String -- ^ Element Id
              -> Map String GSChannel -- ^ Channel Map (Internal)
-             -> IO (GUIWire (Maybe [String]) [Int], Map String GSChannel) -- ^ resulting Wire
-multiSelectW elid gsMap = valueWireGen elid gsMap (\list -> SVList $ fmap SVString list) (\svlist -> let  
-                                                                                             (SVList rval) = svlist 
-                                                                                             rval' = fmap (\svval -> let (SVInt intval) = svval in intval) rval 
-                                                                                             in rval')  MultiSelect
-
+             -> IO (GUIWire (Maybe [(String, Bool)]) [(String, Bool)], Map String GSChannel) -- ^ resulting Wire
+multiSelectW elid gsMap = valueWireGen elid gsMap f1 f2 MultiSelect where 
+  f1 = (\list -> SVList $ fmap (\val -> SVList [SVString (fst val), SVBool (snd val)]) list) 
+  f2 = (\svlist -> let  
+           SVList svlist' = svlist
+           rval = fmap (\el -> let
+                           SVList [a, b] = el
+                           SVString aval = a
+                           SVBool bval = b
+                           in (aval, bval)) svlist'
+           in rval )
 
 guiWireGen :: String -> Map String GSChannel -> (String -> GSChannel -> IO (GUIWire a b)) -> IO (GUIWire a b, Map String GSChannel)
 guiWireGen elid gsMap wireIn = do

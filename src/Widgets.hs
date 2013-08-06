@@ -86,7 +86,7 @@ wInitGUI port = do
                                    for(var i in message.gmValue)
                                    {
                                        var opt;
-                                       var val = message.gmValue[i];
+                                       var val = message.gmValue[i][0];
                                        if (n >= lench) {
                                         opt = domConstruct.create('option');
                                         dsel.appendChild(opt);
@@ -199,9 +199,11 @@ wMultiSelect wid width = do
                                 // Create a text box programmatically:
                                 var myMultiSelect = new MultiSelect({
                                                              onChange: function(val){
-                                                                var intArr = new Array(val.length);
-                                                                for(var i=0; i<val.length; i++) { intArr[i] = parseInt(val[i], 10); }                        
-                                                                sendMessage("#{rawJS wid}", "GUIEvent OnChange", intArr, "MultiSelect");
+                                                                childs = this.containerNode.childNodes;
+                                                                var valArr = new Array(childs.length);
+                                                                for(var i=0; i<childs.length; i++) { valArr[i] = [childs[i].innerHTML, false]; }
+                                                                for(var i=0; i<val.length; i++) { ind = parseInt(val[i], 10); valArr[ind][1] = true; }
+                                                                sendMessage("#{rawJS wid}", "GUIEvent OnChange", valArr, "MultiSelect")
                                                              },
                                                              style: { "width" : "#{rawJS (show width)}px" },
                                                              name: '#{rawJS wid}'
