@@ -102,7 +102,13 @@ wInitGUI port = do
                                    {
                                       dsel.removeChild(dsel.children[n]);
                                    }
-                                }
+
+                                   // set selection
+                                   for (var i in message.gmValue)
+                                   {
+                                     dsel.children[i].selected = message.gmValue[i][1];
+                                   }
+                                } // MultiSelect
                                 else if (message.gmType == "Html") 
                                 {
                                    dom.byId(message.gmId).innerHTML = message.gmValue;
@@ -116,7 +122,7 @@ wInitGUI port = do
                                 {
                                    elem.set("value", message.gmValue);
                                 }
-                              } 
+                              } // SetValue
                             }
                        }
                        theGuiSocket.onopen = function(evt) {
