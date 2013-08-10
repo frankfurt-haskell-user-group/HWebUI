@@ -46,7 +46,7 @@ main = do
     (output, gsmap) <- htmlW "output" gsmap
         
     -- build the FRP wire, arrow notation, with recursion, using delay (!)
-    let w1 = mselect . (once . ((pure $ Just [("one", False), ("two", False), ("three", False), ("four", False)])) <|> (pure Nothing))
+    let w1 = mselect . (once . ((pure $ Just [("one", False, 1), ("two", False, 2), ("three", False, 3), ("four", False, 4)])) <|> (pure Nothing))
     let w2 = output . ((Just . (Prelude.foldl (\a b -> a ++ " " ++ (show b)) "Selected: ")) <$> id) . w1
     let theWire = w2
     

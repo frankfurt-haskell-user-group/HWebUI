@@ -19,22 +19,46 @@ atof instr = case (reads instr) of
      [(f, x)] -> f
       
                  
--- data and functionality, to modify data
+-- data and functionality, to modify data, also the filter feature needs to be considered
+-- therfore, we need two pieces of data, one for keeping the global state, this is entries  
+-- and one for keeping the filtered state, which is after applying the filter and adding index into allEntries (!), this is fiEntries
+     
+
+-- basic names, this is the main data
      
 data Name = Name { _preName :: String, _surName :: String} deriving (Eq, Show)  -- Name Surname
 makeLenses ''Name
 
-data Entries = Entries { _namesEntries :: [Name], _indexEntries :: (Maybe Int)} deriving (Eq, Show)  -- List of names, maybe index of selected element
-makeLenses ''Entries
+type Names = [Name]
 
+-- triple with data, selection, index for the gui multiselect handling
 
+type Entry = (String, Bool, Int)
 
-initialEntries :: Entries
-initialEntries = Entries [] Nothing
+guiText :: Lens' Entry String
+guiText = _1
 
+guiSelected :: Lens' Entry Bool
+guiSelected = _2
 
+guiIndex :: Lens' Entry Int
+guiIndex = _3
 
-    
+type Entries = [Entry]
+type Selection = [Int]
+
+-- helper functions for data
+
+makeEntries :: Names -> Selection -> String -> Entries
+makeEntries names selection filtertxt = filter ffilter $ fmap fentry (zip names [0..]) where
+  ffilter = (\e -> isInfixOf filtertxt (e ^. guiText))
+  fentry = (\(name, i) -> ( (name ^. preName) ++ " " ++ (name ^. surName), elem i selection, i))
+
+onChangeJust :: Bool -> a -> Maybe a
+onChangeJust b work = if b then Just work else Nothing
+          
+
+  
 main :: IO ()
 main = do
     -- settings 
@@ -82,86 +106,68 @@ main = do
     let gsmap = (M.fromList [])::(M.Map String GSChannel)
         
     (prefix, gsmap) <- textBoxW "tb-filter-prefix" gsmap
-    (prename, gsmap) <- textBoxW "tb-prename" gsmap
-    (surname, gsmap) <- textBoxW "tb-surname" gsmap
+    (prenameTxt, gsmap) <- textBoxW "tb-prename" gsmap
+    (surnameTxt, gsmap) <- textBoxW "tb-surname" gsmap
     (create, gsmap) <- buttonW "bt-create" gsmap
     (entrieslist, gsmap) <- multiSelectW "ms-entries" gsmap
     (delete, gsmap) <- buttonW "bt-delete" gsmap
-        
+    
     -- build the FRP wires
     
-    let addEntryW = mkFix (\t (Entries n i) -> Right (Entries (n ++ [Name "New Entry" "(edit me!)"])  i))
-    let delEntryW = mkFix (\t ((Entries n i), sel) -> if null sel then 
-                                                        Right (Entries n i) 
-                                                        else 
-                                                           Right $ Entries (fmap snd (filter (\(a,b) -> a /= head sel) (zip [0..] n) ) ) i 
-                          )
+    let addNameW = mkFix (\t names -> Right (names ++ [Name "New Entry" "Edit me!"]))
+    let delNamesW = mkFix (\t (names, selection) -> Right ( fmap fst $ filter (\(n, i) -> not (elem i selection)) (zip names [0..]) ))
         
-    let ifThenJust b a = if b then Just a else Nothing
+    
+    -- main wire to process crud element
         
-    let getDisplay = (\e -> (e^.preName) ++ " " ++ (e^.surName))
-        
-    let w1 = proc (entries, selection'', filtertxt) -> do
+    let w1 = proc (names, selection, filtertxt) -> do             -- all state is kept in entries and filtertext
           
+          -- check for changes
           fchange <- isJust <$> (event changed) -< filtertxt
+          nchange <- isJust <$> (event changed) -< names
+          schange <- isJust <$> (event changed) -< selection 
           
-          let lkup = (zip [0..] $ fmap fst $ filter (\(a,b) -> isInfixOf filtertxt b) (zip [0..] (fmap getDisplay (entries^.namesEntries))))::[(Int,Int)]
-              
-          let preFromI i = (namesEntries . element i . preName)
-          let surFromI i = (namesEntries . element i . surName)
-          let nameFromI i =  (namesEntries . element i )
-          
-          let selection = if fchange then ([]::[Int]) else selection''
-         
-          echange <- isJust <$> (event changed) -< entries 
-          schange <- isJust <$> (event changed) -< selection
-          
-          
-          
-          
-          
-          (entries', selection', filtertxt') <-
+          (names', selection', filtertxt') <-
                 do
                          -- handle multiselect element
-                         selection' <- entrieslist -<  ifThenJust (echange || fchange) (fmap (\(a,b) -> (fmap getDisplay (entries^.namesEntries))!!b ) lkup )
-                         returnA -< (entries, selection', filtertxt)
+                         selection' <- entrieslist -<  onChangeJust (nchange || fchange || schange) (makeEntries names selection filtertxt)
+                         returnA -< (names, selection', filtertxt)
                    <|> do
                          -- create a new entry
-                         entries' <- addEntryW . create -< entries
-                         returnA -< (entries', selection, filtertxt)
+                         names' <- addNameW . create -< names
+                         returnA -< (names', selection, filtertxt)
                    <|> do
-                         -- delete entry
-                         entries' <- delEntryW . delete -< (entries, selection)
-                         returnA -< (entries', [], filtertxt)
+                         -- delete entries which are selected
+                         names' <- delNamesW . delete -< (names, selection)
+                         returnA -< (names', [], filtertxt)
                    <|> do
                          -- check filtertxt
                          filtertxt' <- prefix -< Nothing
-                         returnA -< (entries, selection, filtertxt')
+                         returnA -< (names, selection, filtertxt')
                    <|> do
-                         -- check prename change
-                         pn <- prename -< ifThenJust ((schange || fchange) && not (null selection)) (view (preFromI $ (fromJust (lookup (head selection) lkup))) entries)
-                         let entries' = if length selection > 0 then
-                                          (preFromI $ (fromJust (lookup (head selection) lkup))) .~ pn $ entries
+                         -- check prename 
+                         pn <- prenameTxt -< onChangeJust (nchange || fchange || schange) (if not (null selection) then head $ toListOf (element (head selection) . preName) names else "")
+                         let names' = if not (null selection) then
+                                            (element (head selection) . preName) .~ pn $ names
                                           else
-                                            entries
-                         returnA -< (entries', selection, filtertxt)
+                                            names
+                         returnA -< (names', selection, filtertxt)
                    <|> do
-                         -- check surname change
-                         sn <- surname  -< ifThenJust ((schange || fchange) && not (null selection)) (view (surFromI $  (fromJust (lookup (head selection) lkup)))  entries)
-                         let entries' = if length selection > 0 then
-                                          (surFromI $ (fromJust (lookup (head selection) lkup))) .~ sn $ entries
---                                          (surFromI (selection!!0)) .~ sn $ entries
+                         -- check surname
+                         sn <- surnameTxt -< onChangeJust (nchange || fchange || schange) (if not (null selection) then  head $ toListOf (element (head selection) . surName) names else "")
+                         let names' = if not (null selection) then
+                                            (element (head selection) . surName) .~ sn $ names
                                           else
-                                            entries
-                         returnA -< (entries', selection, filtertxt)
+                                            names
+                         returnA -< (names', selection, filtertxt)
                    <|> do
-                         returnA -< (entries, selection, filtertxt)
-          returnA -< (entries', selection', filtertxt')
+                         returnA -< (names, selection, filtertxt)
+          returnA -< (names', selection', filtertxt')
 
     let w2 = proc _ -> do
                        rec
-                         (entries, selection, filtertxt) <- delay (initialEntries, [], "") -< (entries', selection', filtertxt')
-                         (entries', selection', filtertxt') <- w1 -< (entries, selection, filtertxt)
+                         (names, selection, filtertxt) <- delay ([]::Names, []::Selection, ""::String) -< (names', selection', filtertxt')
+                         (names', selection', filtertxt') <- w1 -< (names, selection, filtertxt)
                        returnA -< ()
     
     

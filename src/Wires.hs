@@ -100,11 +100,11 @@ textBoxW :: String -- ^ Element Id
              -> IO (GUIWire (Maybe String) String, Map String GSChannel) -- ^ resulting Wire
 textBoxW elid gsMap = valueWireGen elid gsMap SVString (\svval -> let (SVString bstate) = svval in bstate) TextBox
 
--- | Basic wire for MultiSelect GUI element functionality
-multiSelectW :: String -- ^ Element Id
+-- | Basic wire for MultiSelect GUI element functionality 
+_multiSelectW :: String -- ^ Element Id
              -> Map String GSChannel -- ^ Channel Map (Internal)
              -> IO (GUIWire (Maybe [(String, Bool)]) [(String, Bool)], Map String GSChannel) -- ^ resulting Wire
-multiSelectW elid gsMap = valueWireGen elid gsMap f1 f2 MultiSelect where 
+_multiSelectW elid gsMap = valueWireGen elid gsMap f1 f2 MultiSelect where 
   f1 = (\list -> SVList $ fmap (\val -> SVList [SVString (fst val), SVBool (snd val)]) list) 
   f2 = (\svlist -> let  
            SVList svlist' = svlist
@@ -114,6 +114,35 @@ multiSelectW elid gsMap = valueWireGen elid gsMap f1 f2 MultiSelect where
                            SVBool bval = b
                            in (aval, bval)) svlist'
            in rval )
+       
+multiSelectW :: String -- ^ Element Id
+                 -> Map String GSChannel -- ^ Channel Map (Internal)
+                 -> IO (GUIWire (Maybe [(String, Bool, a)]) [a], Map String GSChannel) -- ^ resulting Wire
+multiSelectW elid gsmap = do
+  (w1, gsmap') <- _multiSelectW elid gsmap
+  let w2 = proc inval -> do
+        rec 
+          thingies <- delay [] -< thingies'   -- thingies is the list of thingies of type a, which will get filtered by selections
+    
+          -- case there is a valid inval, thingies list changes
+          let thingies' = case inval of        
+                Just msIn -> fmap (\(s, b, a) -> a) msIn
+                Nothing -> thingies
+        
+        -- rec ends here, following is without rec
+  
+        let inval' = case inval of
+              Just msIn -> Just $ fmap (\(s, b, a) -> (s, b)) msIn
+              Nothing -> Nothing
+        
+
+        -- run original multiSelectW, msOutVal is the selection
+        msOut <- w1 -< inval'
+        returnA -< fmap snd $ Prelude.filter (\((s, sel) , th) -> sel) (Prelude.zip msOut thingies')
+
+  return (w2, gsmap')
+
+    
 
 guiWireGen :: String -> Map String GSChannel -> (String -> GSChannel -> IO (GUIWire a b)) -> IO (GUIWire a b, Map String GSChannel)
 guiWireGen elid gsMap wireIn = do
