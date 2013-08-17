@@ -181,7 +181,7 @@ socketHandlingFunction (Webgui gsmap gl) = do
                           Just guimsg -> do
                             liftIO $ sendSinkJson sink $ guimsg
                             return ()
-                          Nothing -> do
+                          Nothing -> 
                             return ()) gsList
                    liftIO $ threadDelay 1000
                    return ()
