@@ -11,7 +11,7 @@ import HWebUI
 
 -- a double conversion function
 atof :: String -> Double
-atof instr = case (reads instr) of
+atof instr = case reads instr of
      [] -> 0.0
      [(f, x)] -> f
       
@@ -39,19 +39,23 @@ main = do
 
     -- create functionality 
     -----------------------
-        
-    let gsmap = (fromList [])::(Map String GSChannel)
-        
-    (mselect, gsmap) <- multiSelectW "mselect" gsmap
-    (output, gsmap) <- htmlW "output" gsmap
+    let channelAndWire = do    
+        mselect <- multiSelectW "mselect" 
+        output<- htmlW "output" 
         
     -- build the FRP wire, arrow notation, with recursion, using delay (!)
-    let w1 = mselect . (once . ((pure $ Just [("one", False, "data from one"), ("two", False, "data from two"), ("three", False, "data from three"), ("four", False, "data from four")])) <|> (pure Nothing))
-    let w2 = output . ((Just . (Prelude.foldl (\a b -> a ++ " " ++ (show b)) "Selected: ")) <$> id) . w1
-    let theWire = w2
+        let w1 = mselect . (once . pure ( Just [("one", False, "data from one"), 
+                                             ("two", False, "data from two"), 
+                                             ("three", False, "data from three"), 
+                                             ("four", False, "data from four")]) 
+                         <|> pure Nothing) 
+        let w2 = output . (Just . Prelude.foldl (\a b -> a ++ " " ++ show b) "Selected: " 
+                       <$> id) 
+                    . w1
+        return w2
     
     -- run the webserver, the netwire loop and wait for termination   
-    runHWebUI port gsmap guiLayout theWire
+    runHWebUI port guiLayout channelAndWire
 
     return ()
     

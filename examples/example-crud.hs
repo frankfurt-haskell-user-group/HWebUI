@@ -14,7 +14,7 @@ import HWebUI
 
 -- a double conversion function
 atof :: String -> Double
-atof instr = case (reads instr) of
+atof instr = case reads instr of
      [] -> 0.0
      [(f, x)] -> f
       
@@ -51,8 +51,8 @@ type Selection = [Int]
 
 makeEntries :: Names -> Selection -> String -> Entries
 makeEntries names selection filtertxt = filter ffilter $ fmap fentry (zip names [0..]) where
-  ffilter = (\e -> isInfixOf filtertxt (e ^. guiText))
-  fentry = (\(name, i) -> ( (name ^. preName) ++ " " ++ (name ^. surName), elem i selection, i))
+  ffilter e =  filtertxt `isInfixOf` (e ^. guiText)
+  fentry (name, i) = ((name ^. preName) ++ " " ++ (name ^. surName), i `elem` selection, i)
 
 onChangeJust :: Bool -> a -> Maybe a
 onChangeJust b work = if b then Just work else Nothing
@@ -103,79 +103,79 @@ main = do
     -- create functionality 
     -----------------------
         
-    let gsmap = (M.fromList [])::(M.Map String GSChannel)
+    let theWire = do
         
-    (prefix, gsmap) <- textBoxW "tb-filter-prefix" gsmap
-    (prenameTxt, gsmap) <- textBoxW "tb-prename" gsmap
-    (surnameTxt, gsmap) <- textBoxW "tb-surname" gsmap
-    (create, gsmap) <- buttonW "bt-create" gsmap
-    (entrieslist, gsmap) <- multiSelectW "ms-entries" gsmap
-    (delete, gsmap) <- buttonW "bt-delete" gsmap
+        prefix<- textBoxW "tb-filter-prefix" 
+        prenameTxt <- textBoxW "tb-prename" 
+        surnameTxt <- textBoxW "tb-surname" 
+        create <- buttonW "bt-create" 
+        entrieslist <- multiSelectW "ms-entries" 
+        delete <- buttonW "bt-delete" 
     
-    -- build the FRP wires
+        -- build the FRP wires
     
-    let addNameW = mkFix (\t names -> Right (names ++ [Name "New Entry" "Edit me!"]))
-    let delNamesW = mkFix (\t (names, selection) -> Right ( fmap fst $ filter (\(n, i) -> not (elem i selection)) (zip names [0..]) ))
+        let addNameW = mkFix (\t names -> Right (names ++ [Name "New Entry" "Edit me!"]))
+        let delNamesW = mkFix (\t (names, selection) -> Right (fst <$> filter (\(n, i) ->  i `notElem` selection) (zip names [0..]) ))
         
     
     -- main wire to process crud element
         
-    let w1 = proc (names, selection, filtertxt) -> do             -- all state is kept in entries and filtertext
+        let w1 = proc (names, selection, filtertxt) -> do             -- all state is kept in entries and filtertext
           
-          -- check for changes
-          fchange <- isJust <$> (event changed) -< filtertxt
-          nchange <- isJust <$> (event changed) -< names
-          schange <- isJust <$> (event changed) -< selection 
+                -- check for changes
+                fchange <- isJust <$> event changed -< filtertxt
+                nchange <- isJust <$> event changed -< names
+                schange <- isJust <$> event changed -< selection 
           
-          (names', selection', filtertxt') <-
-                do
-                         -- handle multiselect element
-                         selection' <- entrieslist -<  onChangeJust (nchange || fchange || schange) (makeEntries names selection filtertxt)
-                         returnA -< (names, selection', filtertxt)
-                   <|> do
-                         -- create a new entry
-                         names' <- addNameW . create -< names
-                         returnA -< (names', selection, filtertxt)
-                   <|> do
-                         -- delete entries which are selected
-                         names' <- delNamesW . delete -< (names, selection)
-                         returnA -< (names', [], filtertxt)
-                   <|> do
-                         -- check filtertxt
-                         filtertxt' <- prefix -< Nothing
-                         returnA -< (names, selection, filtertxt')
-                   <|> do
-                         -- check prename 
-                         pn <- prenameTxt -< onChangeJust (nchange || fchange || schange) (if not (null selection) then head $ toListOf (element (head selection) . preName) names else "")
-                         let names' = if not (null selection) then
-                                            (element (head selection) . preName) .~ pn $ names
-                                          else
-                                            names
-                         returnA -< (names', selection, filtertxt)
-                   <|> do
-                         -- check surname
-                         sn <- surnameTxt -< onChangeJust (nchange || fchange || schange) (if not (null selection) then  head $ toListOf (element (head selection) . surName) names else "")
-                         let names' = if not (null selection) then
+                (names', selection', filtertxt') <-
+                        do
+                                -- handle multiselect element
+                                selection' <- entrieslist -<  onChangeJust (nchange || fchange || schange) (makeEntries names selection filtertxt)
+                                returnA -< (names, selection', filtertxt)
+                        <|> do
+                                -- create a new entry
+                                names' <- addNameW . create -< names
+                                returnA -< (names', selection, filtertxt)
+                        <|> do
+                                -- delete entries which are selected
+                                names' <- delNamesW . delete -< (names, selection)
+                                returnA -< (names', [], filtertxt)
+                        <|> do
+                                -- check filtertxt
+                                filtertxt' <- prefix -< Nothing
+                                returnA -< (names, selection, filtertxt')
+                        <|> do
+                                -- check prename 
+                                pn <- prenameTxt -< onChangeJust (nchange || fchange || schange) (if not (null selection) then head $ toListOf (element (head selection) . preName) names else "")
+                                let names' = if not (null selection) then
+                                                (element (head selection) . preName) .~ pn $ names
+                                                else
+                                                names
+                                returnA -< (names', selection, filtertxt)
+                        <|> do
+                                -- check surname
+                                sn <- surnameTxt -< onChangeJust (nchange || fchange || schange) (if not (null selection) then  head $ toListOf (element (head selection) . surName) names else "")
+                                let names' = if not (null selection) then
                                             (element (head selection) . surName) .~ sn $ names
                                           else
                                             names
-                         returnA -< (names', selection, filtertxt)
-                   <|> do
-                         returnA -< (names, selection, filtertxt)
-          returnA -< (names', selection', filtertxt')
+                                returnA -< (names', selection, filtertxt)
+                        <|> do
+                                returnA -< (names, selection, filtertxt)
+                returnA -< (names', selection', filtertxt')
 
-    let w2 = proc _ -> do
+        let w2 = proc _ -> do
                        rec
                          (names, selection, filtertxt) <- delay ([]::Names, []::Selection, ""::String) -< (names', selection', filtertxt')
                          (names', selection', filtertxt') <- w1 -< (names, selection, filtertxt)
                        returnA -< ()
     
     
-    let theWire = w2
+        return w2
     
     
     -- run the webserver, the netwire loop and wait for termination   
-    runHWebUI port gsmap guiLayout theWire
+    runHWebUI port guiLayout theWire
     
     return ()
     
