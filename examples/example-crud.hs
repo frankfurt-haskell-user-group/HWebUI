@@ -73,7 +73,7 @@ main = do
         wInitGUI port
         
         -- a table with the entry fields (as text) the operator and the result
-        toWidget [hamlet|
+        [whamlet|
               <H1>HWebUI - CRUD Example
               <p>
                     |]

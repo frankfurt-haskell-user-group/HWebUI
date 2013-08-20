@@ -26,7 +26,7 @@ main = do
         wInitGUI port
         
         -- buttons
-        toWidget [hamlet|
+        [whamlet|
               <H1>HWebUI - Example 1
               The example 1 currently does not show specific interesting things. It was derived from a short demo during our first kickoff meeting. Button 1 changes the result text to something like "Button1 fired". This only works if the checkbox is set as a Filter. Button 2 removes the checkbox Filter. All that is coded in FRP in only a couple of lines, after the elements have been initialized.<p>
 
@@ -36,19 +36,19 @@ main = do
         wButton "Button2" "Button Two"
 
         -- a text box
-        toWidget [hamlet|
+        [whamlet|
               <p>A textbox, to capture text input
                     |]
         wTextBox "TextBox1" 
 
         -- a checkbox
-        toWidget [hamlet|
+        [whamlet|
               <p>A checkbox for advanced examples
                     |]
         wCheckBox "CheckBox1" 
 
         -- finally the output text as html
-        toWidget [hamlet|
+        [whamlet|
               <p>And here the output text: 
               <p>
         |]
