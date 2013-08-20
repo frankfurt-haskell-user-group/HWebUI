@@ -52,7 +52,7 @@ import Messaging
 -- | the base data type included in the Yesod server for convenience
 data Webgui = Webgui {
   channelMap :: (Map String GSChannel), -- ^ the map of unique GUI element ids and the communication Channels
-  guiLayout :: GWidget Webgui Webgui () } -- ^ the layout of the page
+  guiLayout :: WidgetT Webgui IO () } -- ^ the layout of the page
 
 mkYesod "Webgui" [parseRoutes|
 /webgui   GuioneR GET
@@ -61,14 +61,14 @@ mkYesod "Webgui" [parseRoutes|
 instance Yesod Webgui 
 
 -- | the widget type for the Yesod server
-type HWebUIWidget = GWidget Webgui Webgui ()
+type HWebUIWidget = WidgetT Webgui IO ()
 
 -- we need a separate base layout, to include class="claro" in the body element
 
 claroLayout w = do
         p <- widgetToPageContent w
         mmsg <- getMessage
-        hamletToRepHtml [hamlet|
+        giveUrlRenderer [hamlet|
             $newline never
             $doctype 5
             <html>
@@ -98,7 +98,7 @@ jsUtils = [julius|
           |]
 
 -- the one page which is delivered by the yesod web server
-getGuioneR :: Handler RepHtml
+getGuioneR :: Handler Html
 getGuioneR = do
   ys <- getYesod
   let lt = guiLayout ys
@@ -192,7 +192,7 @@ socketHandlingFunction (Webgui gsmap gl) = do
   return ()
   
 -- | function which runs the Yesod webserver, together with the websocket, needed by GUI element communication
-runWebserver :: Int -> Map String GSChannel -> GWidget Webgui Webgui () -> IO ()
+runWebserver :: Int -> Map String GSChannel -> WidgetT Webgui IO () -> IO ()
 runWebserver port gsmap guiLayout = do
     let master = Webgui gsmap guiLayout
         s      = defaultSettings
