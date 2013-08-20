@@ -11,6 +11,11 @@ Installation
 Download sources with git, enter directory on command line prompt and type:
 
 ~~~
+cabal install -f examples
+~~~
+
+or, to build only without examples:
+~~~
 cabal install
 ~~~
 
