@@ -15,6 +15,11 @@ source-repository head
   type:     git
   location: git://github.com/althainz/HWebUI.git
 
+Flag examples
+  description: Build examples
+  default:     False
+  manual:      True
+
 library
   hs-source-dirs:      src
   exposed-modules:     HWebUI, GUIValue, GUIEvent, GUICommand, GUISignal, Messaging, Server, Widgets, Wires
@@ -40,6 +45,10 @@ executable HWebUI-example-counter
                        HWebUI,
                        netwire,
                        yesod < 1.2
+  if flag(examples)
+    buildable: True
+  else
+    buildable: False
 
 executable HWebUI-example-arithmetic
   hs-source-dirs:      examples
@@ -49,6 +58,10 @@ executable HWebUI-example-arithmetic
                        HWebUI,
                        netwire,
                        yesod < 1.2
+  if flag(examples)
+    buildable: True
+  else
+    buildable: False
 
 executable HWebUI-example-currency
   hs-source-dirs:      examples
@@ -58,6 +71,10 @@ executable HWebUI-example-currency
                        HWebUI,
                        netwire,
                        yesod < 1.2
+  if flag(examples)
+    buildable: True
+  else
+    buildable: False
 
 executable HWebUI-example-multiselect
   hs-source-dirs:      examples
@@ -67,6 +84,10 @@ executable HWebUI-example-multiselect
                        HWebUI,
                        netwire,
                        yesod < 1.2
+  if flag(examples)
+    buildable: True
+  else
+    buildable: False
 
 executable HWebUI-example-crud
   hs-source-dirs:      examples
@@ -77,4 +98,8 @@ executable HWebUI-example-crud
                        netwire,
                        yesod < 1.2,
                        lens
+  if flag(examples)
+    buildable: True
+  else
+    buildable: False
 
