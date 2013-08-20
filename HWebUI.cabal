@@ -30,7 +30,7 @@ library
                        warp,
                        wai-websockets,
                        websockets,
-                       yesod < 1.2
+                       yesod >= 1.2
 
 executable HWebUI-example-counter
   hs-source-dirs:      examples
@@ -39,7 +39,7 @@ executable HWebUI-example-counter
                        containers,
                        HWebUI,
                        netwire,
-                       yesod < 1.2
+                       yesod >= 1.2
 
 executable HWebUI-example-arithmetic
   hs-source-dirs:      examples
@@ -48,7 +48,7 @@ executable HWebUI-example-arithmetic
                        containers,
                        HWebUI,
                        netwire,
-                       yesod < 1.2
+                       yesod >= 1.2
 
 executable HWebUI-example-currency
   hs-source-dirs:      examples
@@ -57,7 +57,7 @@ executable HWebUI-example-currency
                        containers,
                        HWebUI,
                        netwire,
-                       yesod < 1.2
+                       yesod >= 1.2
 
 executable HWebUI-example-multiselect
   hs-source-dirs:      examples
@@ -66,7 +66,7 @@ executable HWebUI-example-multiselect
                        containers,
                        HWebUI,
                        netwire,
-                       yesod < 1.2
+                       yesod >= 1.2
 
 executable HWebUI-example-crud
   hs-source-dirs:      examples
@@ -75,6 +75,6 @@ executable HWebUI-example-crud
                        containers,
                        HWebUI,
                        netwire,
-                       yesod < 1.2,
+                       yesod >= 1.2,
                        lens
 
