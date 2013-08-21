@@ -24,7 +24,15 @@ library
   GHC-Options: -Wall
   hs-source-dirs:      src
   exposed-modules:     HWebUI, GUIValue, GUIEvent, GUICommand, GUISignal, Messaging, Server, Widgets, Wires
-  -- other-modules:       
+  -- other-modules:
+  extensions:
+                       TemplateHaskell,
+                       QuasiQuotes,
+                       OverloadedStrings,
+                       TypeFamilies,
+                       MultiParamTypeClasses,
+                       Arrows
+                       
   build-depends:       aeson,
                        attoparsec,
                        base,
