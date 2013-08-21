@@ -2,12 +2,11 @@
 module Main where
 
 import Yesod
-import Control.Concurrent (threadDelay)
 import Control.Wire
 import Prelude hiding ((.), id)
 import qualified Data.Map as M
 import Data.Maybe
-import Data.List
+import Data.List hiding (delete)
 import Control.Lens
 
 import HWebUI
@@ -95,8 +94,6 @@ main = do
            <tr>    
              <td>^{wButton "bt-create" "Create Entry"}
              <td>^{wButton "bt-delete" "Delete Entry"}
-                 
-         
          |]
 
 

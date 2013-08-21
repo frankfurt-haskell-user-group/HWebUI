@@ -2,7 +2,6 @@
 module Main where
 
 import Yesod
-import Control.Concurrent (threadDelay)
 import Control.Wire
 import Prelude hiding ((.), id)
 import Data.Map
@@ -78,7 +77,7 @@ main = do
                                bmul <- hold False mulB -< Nothing
                                bdiv <- hold False divB -< Nothing
                                
-                               let op = if badd then (+) else (if bsub then (-) else (if bmul then (*) else (if bdiv then (/) else (\ x y -> 0.0))))
+                               let op = if badd then (+) else (if bsub then (-) else (if bmul then (*) else (if bdiv then (/) else const 0.0)))
                                let res = op (atof a1) (atof a2)
 
                                returnA -< res                             

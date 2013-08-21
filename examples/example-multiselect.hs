@@ -2,7 +2,6 @@
 module Main where
 
 import Yesod
-import Control.Concurrent (threadDelay)
 import Control.Wire
 import Prelude hiding ((.), id)
 import Data.Map
@@ -54,6 +53,3 @@ main = do
     runHWebUI port gsmap guiLayout theWire
 
     return ()
-    
-    
-
