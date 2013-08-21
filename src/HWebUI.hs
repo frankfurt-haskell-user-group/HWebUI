@@ -69,41 +69,22 @@ module HWebUI (
   ) where
 
 import Yesod
-import Network.Wai.Handler.Warp (runSettings, Settings(..), defaultSettings)
-import qualified Network.WebSockets             as WS
-import qualified Network.Wai.Handler.WebSockets as WS
-import qualified Data.Aeson                     as J
 import System.IO (hFlush, stdout)
-import Control.Applicative
-import Control.Monad
-import Text.Julius (rawJS)
-import Control.Concurrent
-import Control.Exception (SomeException, mask, try)
-import System.IO.Unsafe
-import Control.Wire
 import Prelude hiding ((.), id)
+import Control.Wire
 import Data.Map
-import Data.Text
-import Data.Vector (toList, fromList)
-import Data.Attoparsec.Number as N
 
-import GUIValue
-import GUIEvent
-import GUICommand
-import GUISignal
 import Messaging
 import Widgets
 import Server
 import Wires
 
 -- | this function runs the HWebUI web server (the Yesod server), runs the netwire loop and wait for termination
+runHWebUI :: Int -> Map String GSChannel -> WidgetT Webgui IO () -> Wire e IO () b -> IO ()
 runHWebUI port gsmap guiLayout theWire = do
-    runHWebUIServer port gsmap guiLayout
+    _ <- runHWebUIServer port gsmap guiLayout
     loopHWebUIWire theWire
     waitForHWebUIServer
-
-
-
 
 {- $wiremechanism
 
