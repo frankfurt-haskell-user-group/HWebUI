@@ -6,7 +6,7 @@
 module Server (
   
   Webgui (..),
-  HWebUIWidget,
+  Widget,
   
   runHWebUIServer,
   waitForHWebUIServer
@@ -50,9 +50,6 @@ mkYesod "Webgui" [parseRoutes|
 |]
 
 instance Yesod Webgui 
-
--- | the widget type for the Yesod server
-type HWebUIWidget = WidgetT Webgui IO ()
 
 -- we need a separate base layout, to include class="claro" in the body element
 

@@ -24,7 +24,7 @@ import Server
 
 -- | Yesod widget to initialize needed Javascript functionality in the HTML code of the GUI. Provides Dojokit inclusion and communication with Haskell Yesod server over websockets.
 wInitGUI :: Int -- ^ port used to communicate with Haskell server
-            -> HWebUIWidget -- ^ resulting Yesod widget
+            -> Widget -- ^ resulting Yesod widget
 wInitGUI port = do
   let portStr = show port
   addScriptRemote("http://ajax.googleapis.com/ajax/libs/dojo/1.9.1/dojo/dojo.js")
@@ -120,7 +120,7 @@ wInitGUI port = do
 -- | Yesod widget for the Button GUI Element
 wButton :: String -- ^ Element Id 
            -> String -- ^ Label of the Button 
-           -> HWebUIWidget -- ^ resulting Yesod Widget
+           -> Widget -- ^ resulting Yesod Widget
 wButton wid label = do
   toWidget [julius|
             require(["dojo/ready", "dijit/form/Button", "dojo/dom", "dojo/json"], function(ready, Button, dom, JSON){
@@ -141,7 +141,7 @@ wButton wid label = do
 
 -- | Yesod widget for the CheckBox GUI Element
 wCheckBox :: String -- ^ Element Id
-             -> HWebUIWidget -- ^ resulting Yesod Widget
+             -> Widget -- ^ resulting Yesod Widget
 wCheckBox wid = do
   toWidget [julius|
             require(["dojo/ready", "dijit/form/CheckBox", "dojo/dom", "dojo/json"], function(ready, CheckBox, dom, JSON){
@@ -161,7 +161,7 @@ wCheckBox wid = do
 
 -- | Yesod widget for the TextBox GUI element
 wTextBox :: String -- ^ Element Id
-            -> HWebUIWidget -- ^ resulting Yesod widget
+            -> Widget -- ^ resulting Yesod widget
 wTextBox wid = do
   toWidget [julius|
             require(["dojo/ready", "dijit/form/TextBox", "dojo/dom", "dojo/json"], function(ready, TextBox, dom, JSON){
@@ -183,7 +183,7 @@ wTextBox wid = do
 -- | Yesod widget for the MultiSelect GUI element
 wMultiSelect :: String -- ^ Element Id
             -> Int -- ^ Width of widget
-            -> HWebUIWidget -- ^ resulting Yesod widget
+            -> Widget -- ^ resulting Yesod widget
 wMultiSelect wid width = do
   toWidget [julius|
             require(["dojo/ready", "dijit/form/MultiSelect", "dojo/dom", "dojo/json"], function(ready, MultiSelect, dom, JSON){
@@ -209,7 +209,7 @@ wMultiSelect wid width = do
 
 -- | Yesod widget for the NumberTextBox GUI element
 wNumberTextBox :: String -- ^ Element Id
-                  -> HWebUIWidget -- ^ resulting Yesod widget
+                  -> Widget -- ^ resulting Yesod widget
 wNumberTextBox wid = do
   toWidget [julius|
             require(["dojo/ready", "dijit/form/NumberTextBox", "dojo/dom", "dojo/json"], function(ready, NumberTextBox, dom, JSON){
@@ -232,7 +232,7 @@ wNumberTextBox wid = do
 
 -- | Yesod widget for the PlainHtml GUI element (an element which is used for dynamic HTML output
 wHtml :: String -- ^ Element Id
-         -> HWebUIWidget -- ^ resulting Yesod widget
+         -> Widget -- ^ resulting Yesod widget
 wHtml wid = do
   toWidget [hamlet|
            <div id="#{wid}">
@@ -243,7 +243,7 @@ wRadioButton :: String -- ^ Element Id
                 -> String -- ^ Name
                 -> String -- ^ Value
                 -> Bool -- ^ Checked
-                -> HWebUIWidget -- ^ resulting Yesod widget
+                -> Widget -- ^ resulting Yesod widget
 wRadioButton wid name value checked = do
   toWidget [julius|
             require(["dojo/ready", "dijit/form/RadioButton", "dojo/dom", "dojo/json"], function(ready, RadioButton, dom, JSON){
