@@ -4,7 +4,6 @@ module Main where
 import Yesod
 import Control.Wire
 import Prelude hiding ((.), id)
-import Data.Map
 
 import HWebUI
 
