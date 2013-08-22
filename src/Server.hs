@@ -39,7 +39,6 @@ import Messaging
 
 -- | the base data type included in the Yesod server for convenience
 data Webgui = Webgui {
-  channelMap :: (Map String GSChannel), -- ^ the map of unique GUI element ids and the communication Channels
   guiLayout :: WidgetT Webgui IO () } -- ^ the layout of the page
 
 mkYesod "Webgui" [parseRoutes|
@@ -88,10 +87,8 @@ jsUtils = [julius|
 -- the one page which is delivered by the yesod web server
 getGuioneR :: Handler Html
 getGuioneR = do
-  ys <- getYesod
-  let lt = guiLayout ys
-  claroLayout $ do
-    lt
+  Webgui lt <- getYesod
+  claroLayout lt
 
 
 --------------------------------------------------------
@@ -123,7 +120,7 @@ jsonError msg = J.object [ "error" .= msg ]
 --------------------------------------------------------
 
 -- function, which accepts a new connection to the websocket and starts the socket handling upon that
-socketAcceptFunction :: Webgui -> WS.Request -> WS.WebSockets WS.Hybi10 ()
+socketAcceptFunction :: Map String GSChannel -> WS.Request -> WS.WebSockets WS.Hybi10 ()
 socketAcceptFunction y req
   | WS.requestPath req == "/guisocket" = accept socketHandlingFunction
   | otherwise                      = WS.rejectRequest req "Not found"
@@ -143,16 +140,15 @@ readSocketLoop gsmap = do
                     
                 liftIO $ receiveGMWriteChannel (gsmap ! gmId) (GUIMessage gmId gmSignal gmValue gmType)
                 return ()
-         _ -> do
-           return ()
+         _ -> return ()
            
     liftIO $ threadDelay 1000
     readSocketLoop gsmap
     return ()
   
 -- function which spans a loop for writing to the websocket and runs later the loop to read websockets
-socketHandlingFunction :: Webgui -> WS.WebSockets WS.Hybi10 ()
-socketHandlingFunction (Webgui gsmap gl) = do
+socketHandlingFunction :: Map String GSChannel -> WS.WebSockets WS.Hybi10 ()
+socketHandlingFunction gsmap = do
 --  liftIO $ print "message Socket created"
 --  liftIO $ hFlush stdout
   sink <- WS.getSink
@@ -163,14 +159,14 @@ socketHandlingFunction (Webgui gsmap gl) = do
   
   let gsList = toList gsmap
   _ <- liftIO . forkIO . forever $ do
-                   _ <- sequence $ fmap (\(k, v) -> do
-                          gmsMB <- liftIO $ sendGMReadChannel v
-                          case gmsMB of
-                            Just guimsg -> do
-                              liftIO $ sendSinkJson sink $ guimsg
-                              return ()
-                            Nothing -> do
-                              return ()) gsList
+                   sequence_ $ fmap (\(k, v) -> do
+                        gmsMB <- liftIO $ sendGMReadChannel v
+                        case gmsMB of
+                          Just guimsg -> do
+                            liftIO $ sendSinkJson sink guimsg
+                            return ()
+                          Nothing -> 
+                            return ()) gsList
                    liftIO $ threadDelay 1000
                    return ()
                           
@@ -182,10 +178,10 @@ socketHandlingFunction (Webgui gsmap gl) = do
 -- | function which runs the Yesod webserver, together with the websocket, needed by GUI element communication
 runWebserver :: Int -> Map String GSChannel -> WidgetT Webgui IO () -> IO ()
 runWebserver port gsmap guiLayout = do
-    let master = Webgui gsmap guiLayout
+    let master = Webgui guiLayout
         s      = defaultSettings
                   { settingsPort = port
-                  , settingsIntercept = WS.intercept (socketAcceptFunction master)
+                  , settingsIntercept = WS.intercept $ socketAcceptFunction gsmap
                   }
     runSettings s =<< toWaiApp master
 

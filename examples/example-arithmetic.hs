@@ -10,7 +10,7 @@ import HWebUI
 
 -- a double conversion function
 atof :: String -> Double
-atof instr = case (reads instr) of
+atof instr = case reads instr of
      [] -> 0.0
      [(f, x)] -> f
       
@@ -56,36 +56,41 @@ main = do
         wHtml "out1" 
 
     -- create netwire gui elements
-    let gsmap = (fromList [])::(Map String GSChannel)
+    let theWire = do
         
-    (arg1, gsmap) <- textBoxW "arg1" gsmap
-    (arg2, gsmap) <- textBoxW "arg2" gsmap
-    (addB, gsmap) <- radioButtonW "rbadd" gsmap
-    (subB, gsmap) <- radioButtonW "rbsub" gsmap
-    (mulB, gsmap) <- radioButtonW "rbmul" gsmap
-    (divB, gsmap) <- radioButtonW "rbdiv" gsmap
-    (out1, gsmap) <- htmlW "out1" gsmap
-        
+         arg1 <- textBoxW "arg1"
+         arg2 <- textBoxW "arg2"
+         addB <- radioButtonW "rbadd"
+         subB <- radioButtonW "rbsub"
+         mulB <- radioButtonW "rbmul"
+         divB <- radioButtonW "rbdiv"
+         out1 <- htmlW "out1"
+             
 
-    -- build the FRP wire, arrow notation
+       -- build the FRP wire, arrow notation
     
-    let result = proc _ -> do
-                               a1 <- hold "" arg1 -< Nothing
-                               a2 <- hold "" arg2 -< Nothing
-			       badd <- hold True addB -< Nothing
-      			       bsub <- hold False subB -< Nothing
-                               bmul <- hold False mulB -< Nothing
-                               bdiv <- hold False divB -< Nothing
-                               
-                               let op = if badd then (+) else (if bsub then (-) else (if bmul then (*) else (if bdiv then (/) else const 0.0)))
-                               let res = op (atof a1) (atof a2)
+         let result = proc _ -> do
+                                    a1 <- hold "" arg1 -< Nothing
+                                    a2 <- hold "" arg2 -< Nothing
+                                    badd <- hold True addB -< Nothing
+                                    bsub <- hold False subB -< Nothing
+                                    bmul <- hold False mulB -< Nothing
+                                    bdiv <- hold False divB -< Nothing
+                                    
+                                    let op 
+                                         | badd = (+)
+                                         | bsub = (-)
+                                         | bmul = (*) 
+                                         | bdiv = (/) 
+                                         | otherwise = \ x y -> 0.0
+                                    
+                                    let res = op (atof a1) (atof a2)
+                                    returnA -< res                             
 
-                               returnA -< res                             
-
-    let theWire = out1 .  ((Just . show) <$> result) . pure Nothing
+         return $ out1 .  ((Just . show) <$> result) . pure Nothing
     
     -- run the webserver, the netwire loop and wait for termination   
-    runHWebUI port gsmap guiLayout theWire
+    runHWebUI port guiLayout theWire
 
     return ()
     

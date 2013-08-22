@@ -44,7 +44,8 @@ library
                        warp,
                        wai-websockets,
                        websockets,
-                       yesod >= 1.2
+                       yesod >= 1.2,
+                       mtl
 
 executable HWebUI-example-counter
   GHC-Options: -Wall

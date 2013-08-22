@@ -1,6 +1,6 @@
-{- | HWebUI is providing FRP-based GUI functionality for Haskell by utilizing the Web-Browser. It is build on top of Yesod for the Web technologies and on netwire for the FRP interface. The status is \"early prototype\". The implementation uses a Javascript library (Dojo toolkit) for providing typical widgets, HTML for the layout of the widgets. With Javascript and websockets events are transferred between the Web and the Haskell world. This happens behind the scenes. The Haskell programmer is using a FRP based interface. See also: <http://www.github.com/althainz/HWebUI>.
+{- | HWebUI is providing FRP-based GUI functionality for Haskell by utilizing the Web-Browser. It is build on top of Yesod for the Web technologies and on netwire for the FRP interface. The status is \"early prototype\". The implementation uses a Javascript library (Dojo toolkit) for providing typical widgets, HTML for the layout of the widgets. With Javascript and websockets events are transferred between the Web and the Haskell world. This happens behind the scenes. The Haskell programmer is using a FRP based interface. See also: <http://www.github.com/frankfurt-haskell-user-group/HWebUI>.
 -}
-module HWebUI (
+module HWebUI(
   -- * Creating the GUI Layout with Yesod Widgets
   
   -- ** How HWebUI Yesod widgets can be used 
@@ -48,7 +48,7 @@ module HWebUI (
   -- ** Miscellaneous
   GSChannel,
   GUIWire,
- 
+  ChannelStateGUIWire,
   -- * Implementation Details
   
   -- ** Communication between Javascript/HTML Widget world and FRP Wire world
@@ -75,11 +75,15 @@ import Messaging
 import Widgets
 import Server
 import Wires
+import Control.Monad.State
+import Data.Map
 
 -- | this function runs the HWebUI web server (the Yesod server), runs the netwire loop and wait for termination
-runHWebUI :: Int -> Map String GSChannel -> WidgetT Webgui IO () -> Wire e IO () b -> IO ()
-runHWebUI port gsmap guiLayout theWire = do
-    _ <- runHWebUIServer port gsmap guiLayout
+runHWebUI port guiLayout channelStateWire = do
+    -- create netwire gui elements
+    let gsmap = Data.Map.fromList [] :: Map String GSChannel
+    (theWire,gsmap') <- runStateT channelStateWire gsmap    
+    runHWebUIServer port gsmap' guiLayout
     loopHWebUIWire theWire
     waitForHWebUIServer
 
@@ -113,8 +117,8 @@ The anchor between the Yesod widgets and the netwire wire is the \"Element Id\".
 >    let result = proc _ -> do
 >                              a1 <- hold "" arg1 -< Nothing
 >                              a2 <- hold "" arg2 -< Nothing
-> 			       badd <- hold True addB -< Nothing
->      			       bsub <- hold False subB -< Nothing
+>                                badd <- hold True addB -< Nothing
+>                                     bsub <- hold False subB -< Nothing
 >                              bmul <- hold False mulB -< Nothing
 >                              bdiv <- hold False divB -< Nothing
 >                               
