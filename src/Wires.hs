@@ -1,5 +1,3 @@
-{-# LANGUAGE TemplateHaskell, QuasiQuotes, OverloadedStrings, TypeFamilies, MultiParamTypeClasses, Arrows #-}
-
 {- | Wires is an internal implementation module of "HWebUI". "HWebUI" is providing FRP-based GUI functionality for Haskell by utilizing the Web-Browser. See module "HWebUI" for main documentation. 
 -}
 module Wires (
@@ -17,32 +15,18 @@ module Wires (
   GUIWire
   ) where
 
-import Yesod
-import Network.Wai.Handler.Warp (runSettings, Settings(..), defaultSettings)
-import qualified Network.WebSockets             as WS
-import qualified Network.Wai.Handler.WebSockets as WS
-import qualified Data.Aeson                     as J
 import System.IO (hFlush, stdout)
-import Control.Applicative
 import Control.Monad
-import Text.Julius (rawJS)
 import Control.Concurrent
-import Control.Exception (SomeException, mask, try)
-import System.IO.Unsafe
 import Control.Wire
 import Prelude hiding ((.), id)
 import Data.Map
-import Data.Text
-import Data.Vector (toList, fromList)
-import Data.Attoparsec.Number as N
 
 import GUIValue
 import GUIEvent
 import GUICommand
 import GUISignal
 import Messaging
-import Widgets
-import Server
 
 
 -- Netwire Types
@@ -105,7 +89,7 @@ _multiSelectW :: String -- ^ Element Id
              -> Map String GSChannel -- ^ Channel Map (Internal)
              -> IO (GUIWire (Maybe [(String, Bool)]) [(String, Bool)], Map String GSChannel) -- ^ resulting Wire
 _multiSelectW elid gsMap = valueWireGen elid gsMap f1 f2 MultiSelect where 
-  f1 = (\list -> SVList $ fmap (\val -> SVList [SVString (fst val), SVBool (snd val)]) list) 
+  f1 = (\lst -> SVList $ fmap (\val -> SVList [SVString (fst val), SVBool (snd val)]) lst) 
   f2 = (\svlist -> let  
            SVList svlist' = svlist
            rval = fmap (\el -> let
@@ -215,12 +199,12 @@ buttonW :: String -- ^ Element Id
              -> IO (GUIWire a a, Map String GSChannel) -- ^ resulting Wire
 buttonW elid gsMap = guiWireGen elid gsMap buttonW'
 
-
-
+_loopAWire :: Wire e IO () b -> Session IO -> IO ()
 _loopAWire wire session = do
     (r, wire',  session') <- stepSession wire session ()
     threadDelay 10000
     _loopAWire wire' session'
     return ()
 
+loopHWebUIWire :: Wire e IO () b -> IO ()
 loopHWebUIWire theWire = _loopAWire theWire clockSession

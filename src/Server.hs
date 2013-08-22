@@ -1,12 +1,9 @@
-{-# LANGUAGE TemplateHaskell, QuasiQuotes, OverloadedStrings, TypeFamilies, MultiParamTypeClasses, Arrows #-}
-
-
 {- | Server is an internal implementation module of "HWebUI". "HWebUI" is providing FRP-based GUI functionality for Haskell by utilizing the Web-Browser. See module "HWebUI" for main documentation. 
 -}
 module Server (
   
   Webgui (..),
-  HWebUIWidget (..),
+  Widget,
   
   runHWebUIServer,
   waitForHWebUIServer
@@ -19,23 +16,14 @@ import qualified Network.WebSockets             as WS
 import qualified Network.Wai.Handler.WebSockets as WS
 import qualified Data.Aeson                     as J
 import System.IO (hFlush, stdout)
-import Control.Applicative
 import Control.Monad
-import Text.Julius (rawJS)
 import Control.Concurrent
-import Control.Exception (SomeException, mask, try)
+import Control.Exception (mask, try)
 import System.IO.Unsafe
 import Control.Wire
 import Prelude hiding ((.), id)
 import Data.Map
-import Data.Text
-import Data.Vector (toList, fromList)
-import Data.Attoparsec.Number as N
 
-import GUIValue
-import GUIEvent
-import GUICommand
-import GUISignal
 import Messaging
 
 -- this module implements the background server for the HWebUI GUI. The background server is based on Yesod und features:
@@ -60,11 +48,9 @@ mkYesod "Webgui" [parseRoutes|
 
 instance Yesod Webgui 
 
--- | the widget type for the Yesod server
-type HWebUIWidget = WidgetT Webgui IO ()
-
 -- we need a separate base layout, to include class="claro" in the body element
 
+claroLayout :: Yesod site => WidgetT site IO () -> HandlerT site IO Html
 claroLayout w = do
         p <- widgetToPageContent w
         mmsg <- getMessage
@@ -81,7 +67,9 @@ claroLayout w = do
                     ^{pageBody p}
             |]
 
-
+-- Warning: Defined but not used: `jsUtils'
+-- but it seems to have some use.
+jsUtils :: JavascriptUrl url
 jsUtils = [julius|
              function evtJson(evt, f) {
                var str;
@@ -173,16 +161,16 @@ socketHandlingFunction (Webgui gsmap gl) = do
   -- check incoming messages from the MVar lists and forwards them over the websockets interface
   -- (this is the write socket loop)
   
-  let gsList = Data.Map.toList gsmap
+  let gsList = toList gsmap
   _ <- liftIO . forkIO . forever $ do
-                   sequence $ fmap (\(k, v) -> do
-                        gmsMB <- liftIO $ sendGMReadChannel v
-                        case gmsMB of
-                          Just guimsg -> do
-                            liftIO $ sendSinkJson sink $ guimsg
-                            return ()
-                          Nothing -> do
-                            return ()) gsList
+                   _ <- sequence $ fmap (\(k, v) -> do
+                          gmsMB <- liftIO $ sendGMReadChannel v
+                          case gmsMB of
+                            Just guimsg -> do
+                              liftIO $ sendSinkJson sink $ guimsg
+                              return ()
+                            Nothing -> do
+                              return ()) gsList
                    liftIO $ threadDelay 1000
                    return ()
                           
@@ -237,7 +225,9 @@ forkFinally action and_then =
     forkIO $ try (restore action) >>= and_then
     
 -- | run the HWebUIServer in the background
+runHWebUIServer :: Int -> Map String GSChannel -> WidgetT Webgui IO () -> IO ThreadId
 runHWebUIServer port gsmap guiLayout = forkChild $ runWebserver port gsmap guiLayout
 
 -- | wait for HWebUIServer to terminate
+waitForHWebUIServer :: IO ()
 waitForHWebUIServer = waitForChildren

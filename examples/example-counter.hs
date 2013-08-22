@@ -2,7 +2,6 @@
 module Main where
 
 import Yesod
-import Control.Concurrent (threadDelay)
 import Control.Wire
 import Prelude hiding ((.), id)
 import Data.Map
@@ -19,7 +18,7 @@ main = do
         wInitGUI port
         
         -- buttons
-        toWidget [hamlet|
+        [whamlet|
               <H1>HWebUI - Counter Example
               The following buttons increase and decrease the counter:
                     |]
@@ -27,7 +26,7 @@ main = do
         wButton "Button2" "Down"
 
         -- finally the output text as html
-        toWidget [hamlet|
+        [whamlet|
               <p>And here the output value: 
               <p>
         |]

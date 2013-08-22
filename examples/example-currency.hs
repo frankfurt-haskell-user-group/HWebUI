@@ -2,7 +2,6 @@
 module Main where
 
 import Yesod
-import Control.Concurrent (threadDelay)
 import Control.Wire
 import Prelude hiding ((.), id)
 import Data.Map
@@ -29,7 +28,7 @@ main = do
         wInitGUI port
         
         -- a table with the entry fields (as text) the operator and the result
-        toWidget [hamlet|
+        [whamlet|
               <H1>HWebUI - Currency Example
               <p>
                     |]
