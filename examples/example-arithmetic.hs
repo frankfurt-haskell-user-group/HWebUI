@@ -81,7 +81,7 @@ main = do
                                          | bsub = (-)
                                          | bmul = (*) 
                                          | bdiv = (/) 
-                                         | otherwise = const 0.0
+                                         | otherwise = \ x y -> 0.0
                                     
                                     let res = op (atof a1) (atof a2)
                                     returnA -< res                             
