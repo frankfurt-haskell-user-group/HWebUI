@@ -2,12 +2,12 @@
 module Main where
 
 import Yesod
-import Control.Concurrent (threadDelay)
-import Control.Wire
+import qualified Control.Wire as CW
+import Control.Wire (pure, (<|>), (<$>), (.))
 import Prelude hiding ((.), id)
 import Data.Map
 
-import HWebUI
+import qualified HWebUI as HW
 
 main :: IO ()
 main = do
@@ -16,34 +16,34 @@ main = do
         
     -- create gui elements and layout
     let guiLayout = do    
-        wInitGUI port
+        HW.wInitGUI port
         
         -- buttons
         toWidget [hamlet|
               <H1>HWebUI - Counter Example
               The following buttons increase and decrease the counter:
                     |]
-        wButton "Button1" "Up"
-        wButton "Button2" "Down"
+        HW.wButton "Button1" "Up"
+        HW.wButton "Button2" "Down"
 
         -- finally the output text as html
         toWidget [hamlet|
               <p>And here the output value: 
               <p>
         |]
-        wHtml "out1" 
+        HW.wHtml "out1" 
 
     -- create netwire gui elements
-    let gsmap = (fromList [])::(Map String GSChannel)
+    let gsmap = (fromList [])::(Map String HW.GSChannel)
         
-    (up, gsmap) <- buttonW "Button1" gsmap
-    (down, gsmap) <- buttonW "Button2" gsmap
-    (output, gsmap) <- htmlW "out1" gsmap
+    (up, gsmap') <- HW.buttonW "Button1" gsmap
+    (down, gsmap'') <- HW.buttonW "Button2" gsmap'
+    (output, gsmap''') <- HW.htmlW "out1" gsmap''
         
     -- build the FRP wire, we need a counter, which increases a value at each up event and decreases it at each down event
     
     -- this wire counts from 0, part of prefab netwire Wires
-    let cnt = countFrom (0::Int)
+    let cnt = CW.countFrom (0::Int)
 
     -- this wire adds one on button up, substracts one on button down, return id on no button press
     let w1 = cnt . ( (up . (pure 1)) <|> (down . (pure (-1) )) <|> (pure 0) )
@@ -52,10 +52,10 @@ main = do
     let strw1 = (Just . show ) <$> w1
         
     -- set the output on change only
-    let theWire = output . changed . strw1 
+    let theWire = output . CW.changed . strw1 
     
     -- run the webserver, the netwire loop and wait for termination   
-    runHWebUI port gsmap guiLayout theWire
+    HW.runHWebUI port gsmap''' guiLayout theWire
 
     return ()
     
