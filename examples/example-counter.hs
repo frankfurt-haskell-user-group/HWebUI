@@ -5,7 +5,6 @@ import Yesod
 import qualified Control.Wire as CW
 import Control.Wire (pure, (<|>), (<$>), (.))
 import Prelude hiding ((.), id)
-import Data.Map
 
 import qualified HWebUI as HW
 
@@ -19,7 +18,7 @@ main = do
         HW.wInitGUI port
         
         -- buttons
-        toWidget [hamlet|
+        [whamlet|
               <H1>HWebUI - Counter Example
               The following buttons increase and decrease the counter:
                     |]
@@ -27,35 +26,35 @@ main = do
         HW.wButton "Button2" "Down"
 
         -- finally the output text as html
-        toWidget [hamlet|
+        [whamlet|
               <p>And here the output value: 
               <p>
         |]
         HW.wHtml "out1" 
 
     -- create netwire gui elements
-    let gsmap = (fromList [])::(Map String HW.GSChannel)
+    let theWire = do
         
-    (up, gsmap') <- HW.buttonW "Button1" gsmap
-    (down, gsmap'') <- HW.buttonW "Button2" gsmap'
-    (output, gsmap''') <- HW.htmlW "out1" gsmap''
+        up <- HW.buttonW "Button1" 
+        down <- HW.buttonW "Button2" 
+        output <- HW.htmlW "out1" 
         
-    -- build the FRP wire, we need a counter, which increases a value at each up event and decreases it at each down event
+        -- build the FRP wire, we need a counter, which increases a value at each up event and decreases it at each down event
     
-    -- this wire counts from 0, part of prefab netwire Wires
-    let cnt = CW.countFrom (0::Int)
+        -- this wire counts from 0, part of prefab netwire Wires
+        let cnt = CW.countFrom (0::Int)
 
-    -- this wire adds one on button up, substracts one on button down, return id on no button press
-    let w1 = cnt . ( (up . (pure 1)) <|> (down . (pure (-1) )) <|> (pure 0) )
+        -- this wire adds one on button up, substracts one on button down, return id on no button press
+        let w1 = cnt . ( up . pure 1 <|> down . pure (-1)  <|> pure 0 )
 
-    -- stringify the output result (applicative style)
-    let strw1 = (Just . show ) <$> w1
+        -- stringify the output result (applicative style)
+        let strw1 = (Just . show ) <$> w1
         
-    -- set the output on change only
-    let theWire = output . CW.changed . strw1 
+        -- set the output on change only
+        return $ output . CW.changed . strw1 
     
     -- run the webserver, the netwire loop and wait for termination   
-    HW.runHWebUI port gsmap''' guiLayout theWire
+    HW.runHWebUI port guiLayout theWire
 
     return ()
     

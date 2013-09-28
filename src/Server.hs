@@ -1,12 +1,9 @@
-{-# LANGUAGE TemplateHaskell, QuasiQuotes, OverloadedStrings, TypeFamilies, MultiParamTypeClasses, Arrows #-}
-
-
 {- | Server is an internal implementation module of "HWebUI". "HWebUI" is providing FRP-based GUI functionality for Haskell by utilizing the Web-Browser. See module "HWebUI" for main documentation. 
 -}
 module Server (
   
   Webgui (..),
-  HWebUIWidget (..),
+  Widget,
   
   runHWebUIServer,
   waitForHWebUIServer
@@ -19,23 +16,14 @@ import qualified Network.WebSockets             as WS
 import qualified Network.Wai.Handler.WebSockets as WS
 import qualified Data.Aeson                     as J
 import System.IO (hFlush, stdout)
-import Control.Applicative
 import Control.Monad
-import Text.Julius (rawJS)
 import Control.Concurrent
-import Control.Exception (SomeException, mask, try)
+import Control.Exception (mask, try)
 import System.IO.Unsafe
 import Control.Wire
 import Prelude hiding ((.), id)
 import Data.Map
-import Data.Text
-import Data.Vector (toList, fromList)
-import Data.Attoparsec.Number as N
 
-import GUIValue
-import GUIEvent
-import GUICommand
-import GUISignal
 import Messaging
 
 -- this module implements the background server for the HWebUI GUI. The background server is based on Yesod und features:
@@ -51,7 +39,6 @@ import Messaging
 
 -- | the base data type included in the Yesod server for convenience
 data Webgui = Webgui {
-  channelMap :: (Map String GSChannel), -- ^ the map of unique GUI element ids and the communication Channels
   guiLayout :: WidgetT Webgui IO () } -- ^ the layout of the page
 
 mkYesod "Webgui" [parseRoutes|
@@ -60,11 +47,9 @@ mkYesod "Webgui" [parseRoutes|
 
 instance Yesod Webgui 
 
--- | the widget type for the Yesod server
-type HWebUIWidget = WidgetT Webgui IO ()
-
 -- we need a separate base layout, to include class="claro" in the body element
 
+claroLayout :: Yesod site => WidgetT site IO () -> HandlerT site IO Html
 claroLayout w = do
         p <- widgetToPageContent w
         mmsg <- getMessage
@@ -81,7 +66,9 @@ claroLayout w = do
                     ^{pageBody p}
             |]
 
-
+-- Warning: Defined but not used: `jsUtils'
+-- but it seems to have some use.
+jsUtils :: JavascriptUrl url
 jsUtils = [julius|
              function evtJson(evt, f) {
                var str;
@@ -100,10 +87,8 @@ jsUtils = [julius|
 -- the one page which is delivered by the yesod web server
 getGuioneR :: Handler Html
 getGuioneR = do
-  ys <- getYesod
-  let lt = guiLayout ys
-  claroLayout $ do
-    lt
+  Webgui lt <- getYesod
+  claroLayout lt
 
 
 --------------------------------------------------------
@@ -135,7 +120,7 @@ jsonError msg = J.object [ "error" .= msg ]
 --------------------------------------------------------
 
 -- function, which accepts a new connection to the websocket and starts the socket handling upon that
-socketAcceptFunction :: Webgui -> WS.Request -> WS.WebSockets WS.Hybi10 ()
+socketAcceptFunction :: Map String GSChannel -> WS.Request -> WS.WebSockets WS.Hybi10 ()
 socketAcceptFunction y req
   | WS.requestPath req == "/guisocket" = accept socketHandlingFunction
   | otherwise                      = WS.rejectRequest req "Not found"
@@ -155,16 +140,15 @@ readSocketLoop gsmap = do
                     
                 liftIO $ receiveGMWriteChannel (gsmap ! gmId) (GUIMessage gmId gmSignal gmValue gmType)
                 return ()
-         _ -> do
-           return ()
+         _ -> return ()
            
     liftIO $ threadDelay 1000
     readSocketLoop gsmap
     return ()
   
 -- function which spans a loop for writing to the websocket and runs later the loop to read websockets
-socketHandlingFunction :: Webgui -> WS.WebSockets WS.Hybi10 ()
-socketHandlingFunction (Webgui gsmap gl) = do
+socketHandlingFunction :: Map String GSChannel -> WS.WebSockets WS.Hybi10 ()
+socketHandlingFunction gsmap = do
 --  liftIO $ print "message Socket created"
 --  liftIO $ hFlush stdout
   sink <- WS.getSink
@@ -173,15 +157,15 @@ socketHandlingFunction (Webgui gsmap gl) = do
   -- check incoming messages from the MVar lists and forwards them over the websockets interface
   -- (this is the write socket loop)
   
-  let gsList = Data.Map.toList gsmap
+  let gsList = toList gsmap
   _ <- liftIO . forkIO . forever $ do
-                   sequence $ fmap (\(k, v) -> do
+                   sequence_ $ fmap (\(k, v) -> do
                         gmsMB <- liftIO $ sendGMReadChannel v
                         case gmsMB of
                           Just guimsg -> do
-                            liftIO $ sendSinkJson sink $ guimsg
+                            liftIO $ sendSinkJson sink guimsg
                             return ()
-                          Nothing -> do
+                          Nothing -> 
                             return ()) gsList
                    liftIO $ threadDelay 1000
                    return ()
@@ -194,10 +178,10 @@ socketHandlingFunction (Webgui gsmap gl) = do
 -- | function which runs the Yesod webserver, together with the websocket, needed by GUI element communication
 runWebserver :: Int -> Map String GSChannel -> WidgetT Webgui IO () -> IO ()
 runWebserver port gsmap guiLayout = do
-    let master = Webgui gsmap guiLayout
+    let master = Webgui guiLayout
         s      = defaultSettings
                   { settingsPort = port
-                  , settingsIntercept = WS.intercept (socketAcceptFunction master)
+                  , settingsIntercept = WS.intercept $ socketAcceptFunction gsmap
                   }
     runSettings s =<< toWaiApp master
 
@@ -237,7 +221,9 @@ forkFinally action and_then =
     forkIO $ try (restore action) >>= and_then
     
 -- | run the HWebUIServer in the background
+runHWebUIServer :: Int -> Map String GSChannel -> WidgetT Webgui IO () -> IO ThreadId
 runHWebUIServer port gsmap guiLayout = forkChild $ runWebserver port gsmap guiLayout
 
 -- | wait for HWebUIServer to terminate
+waitForHWebUIServer :: IO ()
 waitForHWebUIServer = waitForChildren

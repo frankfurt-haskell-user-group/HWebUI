@@ -21,9 +21,18 @@ Flag examples
   manual:      True
 
 library
+  GHC-Options: -Wall
   hs-source-dirs:      src
   exposed-modules:     HWebUI, GUIValue, GUIEvent, GUICommand, GUISignal, Messaging, Server, Widgets, Wires
-  -- other-modules:       
+  -- other-modules:
+  extensions:
+                       TemplateHaskell,
+                       QuasiQuotes,
+                       OverloadedStrings,
+                       TypeFamilies,
+                       MultiParamTypeClasses,
+                       Arrows
+                       
   build-depends:       aeson,
                        attoparsec,
                        base,
@@ -35,9 +44,11 @@ library
                        warp,
                        wai-websockets,
                        websockets,
-                       yesod >= 1.2
+                       yesod >= 1.2,
+                       mtl
 
 executable HWebUI-example-counter
+  GHC-Options: -Wall
   hs-source-dirs:      examples
   main-is:             example-counter.hs
   build-depends:       base,
@@ -51,6 +62,7 @@ executable HWebUI-example-counter
     buildable: False
 
 executable HWebUI-example-arithmetic
+  GHC-Options: -Wall
   hs-source-dirs:      examples
   main-is:             example-arithmetic.hs
   build-depends:       base,
@@ -64,6 +76,7 @@ executable HWebUI-example-arithmetic
     buildable: False
 
 executable HWebUI-example-currency
+  GHC-Options: -Wall
   hs-source-dirs:      examples
   main-is:             example-currency.hs
   build-depends:       base,
@@ -77,6 +90,7 @@ executable HWebUI-example-currency
     buildable: False
 
 executable HWebUI-example-multiselect
+  GHC-Options: -Wall
   hs-source-dirs:      examples
   main-is:             example-multiselect.hs
   build-depends:       base,
@@ -90,6 +104,7 @@ executable HWebUI-example-multiselect
     buildable: False
 
 executable HWebUI-example-crud
+  GHC-Options: -Wall
   hs-source-dirs:      examples
   main-is:             example-crud.hs
   build-depends:       base,
@@ -102,4 +117,3 @@ executable HWebUI-example-crud
     buildable: True
   else
     buildable: False
-
