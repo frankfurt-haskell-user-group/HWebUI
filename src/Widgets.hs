@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances, ExistentialQuantification, ScopedTypeVariables #-}
 {- | Widgets is an internal implementation module of "HWebUI". "HWebUI" is providing FRP-based GUI functionality for Haskell by utilizing the Web-Browser. See module "HWebUI" for main documentation. 
 -}
 module Widgets (
@@ -10,12 +11,26 @@ module Widgets (
   wRadioButton,
   wTextBox,
   
+  Attribute (..),
+  Property (..),
+  style,
+  height,
+  width,
+  label,
+  name,
+  value,
+  checked
+  
+  
   ) where
 
 import Yesod
 import System.IO (hFlush, stdout)
-import Text.Julius (rawJS)
+import Text.Julius (rawJS, ToJavascript, toJavascript)
+import Data.Text.Lazy.Builder (fromString, Builder)
 import Prelude hiding ((.), id)
+import Data.Text (pack) 
+import Data.List (intersperse)
 
 import Server
 
@@ -114,17 +129,72 @@ wInitGUI port = do
 
            |]
 
--- | Yesod widget for the Button GUI Element
+
+data  Attribute w a = Attr String (String -> a -> String)
+data Property w = forall a. Attribute w a := a
+
+propToJS :: Property w -> String
+propToJS ( (:=) (Attr name toJS) value) = toJS name value
+
+class HasLabel w where
+  label :: Attribute w String
+  label = Attr "label" stringPairToJS
+
+class HasStyle w where
+  style :: Attribute w String
+  style = Attr "style" stringPairToJS
+
+class HasConstraints w where
+  constraints :: Attribute w JavaScript
+  style = Attr "style" stringPairToJS
+
+class HasName w where
+  name :: Attribute w String
+  name = Attr "name" stringPairToJS
+
+class HasValue w where
+  value :: Attribute w String
+  value = Attr "value" stringPairToJS
+
+class HasChecked w where
+  checked :: Attribute w Bool
+  checked = Attr "checked" boolPairToJS
+
+class HasSize w where
+  width :: Attribute w Int
+  height :: Attribute w Int
+  width = Attr "width" intPairToJS
+  height = Attr "height" intPairToJS
+
+
+
+intPairToJS :: String -> Int -> String
+intPairToJS s i =  s ++ ": "  ++ (show i)
+floatPairToJS :: String -> Float -> String
+floatPairToJS s f = s ++ ": "  ++ (show f)
+boolPairToJS :: String -> Bool -> String
+boolPairToJS s b = s ++ ": " ++ (if b then "true" else "false")
+stringPairToJS :: String -> String -> String
+stringPairToJS s1 s2 = s1 ++ ": \"" ++ s2 ++ "\""
+  
+parasToJS :: [Property w] -> String
+parasToJS pl = foldl (++) "" $ (\l -> if null l then l else l ++ [","])  $ intersperse "," $ map propToJS pl
+
+data Button = Button ()
+instance HasLabel Button
+instance HasStyle Button
+  
+-- | Yesod widget for the Button GUI Elemhiding (intersperse)ent
 wButton :: String -- ^ Element Id 
-           -> String -- ^ Label of the Button 
+           -> [Property Button] -- ^ additional parameters
            -> Widget -- ^ resulting Yesod Widget
-wButton wid label = do
+wButton wid paralist = do
   toWidget [julius|
             require(["dojo/ready", "dijit/form/Button", "dojo/dom", "dojo/json"], function(ready, Button, dom, JSON){
                        ready(function(){
                                 // Create a button programmatically:
                                 var myButton = new Button({
-                                                             label: "#{rawJS label}",
+                                                             #{rawJS $ parasToJS paralist}
                                                              onClick: function(){
                                                                sendMessage("#{rawJS wid}", "GUIEvent OnChange", "Event", "Button");
                                                              }
@@ -136,15 +206,22 @@ wButton wid label = do
            <button id="#{wid}" type="button">
             |]
 
+data CheckBox = CheckBox ()
+instance HasLabel CheckBox
+instance HasChecked CheckBox
+instance HasStyle CheckBox
+
 -- | Yesod widget for the CheckBox GUI Element
 wCheckBox :: String -- ^ Element Id
+             -> [Property CheckBox] -- ^ additional parameters
              -> Widget -- ^ resulting Yesod Widget
-wCheckBox wid = do
+wCheckBox wid paralist = do
   toWidget [julius|
             require(["dojo/ready", "dijit/form/CheckBox", "dojo/dom", "dojo/json"], function(ready, CheckBox, dom, JSON){
                        ready(function(){
                                 // Create a checkbox programmatically:
                                 var myCheckBox = new CheckBox({
+                                                             #{rawJS $ parasToJS paralist}
                                                              onChange: function(val){
                                                                sendMessage("#{rawJS wid}", "GUIEvent OnChange", val, "CheckBox");
                                                              }
@@ -156,15 +233,21 @@ wCheckBox wid = do
            <input id="#{wid}" type="checkbox">
             |]
 
+data TextBox = TextBox ()
+instance HasStyle TextBox
+instance HasSize TextBox
+
 -- | Yesod widget for the TextBox GUI element
 wTextBox :: String -- ^ Element Id
+            -> [Property TextBox] -- ^ additional parameters
             -> Widget -- ^ resulting Yesod widget
-wTextBox wid = do
+wTextBox wid paralist = do
   toWidget [julius|
             require(["dojo/ready", "dijit/form/TextBox", "dojo/dom", "dojo/json"], function(ready, TextBox, dom, JSON){
                        ready(function(){
                                 // Create a text box programmatically:
                                 var myTextBox = new TextBox({
+                                                             #{rawJS $ parasToJS paralist}
                                                              onChange: function(val){
                                                                sendMessage("#{rawJS wid}", "GUIEvent OnChange", val, "TextBox");
                                                              },
@@ -177,25 +260,30 @@ wTextBox wid = do
            <input id="#{wid}" type="textbox">
             |]
 
+
+data MultiSelect = MultiSelect ()
+instance HasStyle MultiSelect
+instance HasSize MultiSelect
+  
+
 -- | Yesod widget for the MultiSelect GUI element
 wMultiSelect :: String -- ^ Element Id
-            -> Int -- ^ Width of widget
-            -> Widget -- ^ resulting Yesod widget
-wMultiSelect wid width = do
+             -> [Property MultiSelect] -- ^ additional parameters
+             -> Widget -- ^ resulting Yesod widget
+wMultiSelect wid paralist = do
   toWidget [julius|
             require(["dojo/ready", "dijit/form/MultiSelect", "dojo/dom", "dojo/json"], function(ready, MultiSelect, dom, JSON){
                        ready(function(){
                                 // Create a text box programmatically:
                                 var myMultiSelect = new MultiSelect({
+                                                             #{rawJS $ parasToJS paralist}
                                                              onChange: function(val){
                                                                 childs = this.containerNode.childNodes;
                                                                 var valArr = new Array(childs.length);
                                                                 for(var i=0; i<childs.length; i++) { valArr[i] = [childs[i].innerHTML, false]; }
                                                                 for(var i=0; i<val.length; i++) { ind = parseInt(val[i], 10); valArr[ind][1] = true; }
                                                                 sendMessage("#{rawJS wid}", "GUIEvent OnChange", valArr, "MultiSelect")
-                                                             },
-                                                             style: { "width" : "#{rawJS (show width)}px" },
-                                                             name: '#{rawJS wid}'
+                                                             }
                                                              }, dom.byId('#{rawJS wid}'));
                        });
              });  
@@ -204,21 +292,26 @@ wMultiSelect wid width = do
            <select id="#{wid}">
             |]
 
+data NumberTextBox = NumberTextBox ()
+instance HasStyle NumberTextBox
+instance HasSize NumberTextBox
+  
+
 -- | Yesod widget for the NumberTextBox GUI element
 wNumberTextBox :: String -- ^ Element Id
+                  -> [Property NumberTextBox] -- ^ additional parameters
                   -> Widget -- ^ resulting Yesod widget
-wNumberTextBox wid = do
+wNumberTextBox wid paralist = do
   toWidget [julius|
             require(["dojo/ready", "dijit/form/NumberTextBox", "dojo/dom", "dojo/json"], function(ready, NumberTextBox, dom, JSON){
                        ready(function(){
                                 // Create a number text box programmatically:
                                 var myTextBox = new NumberTextBox({
+                                                             #{rawJS $ parasToJS paralist}
                                                              onChange: function(val){
                                                                sendMessage("#{rawJS wid}", "GUIEvent OnChange", val, "NumberTextBox");
                                                              },
-                                                             intermediateChanges: true,
-                                                             name: "#{rawJS wid}",
-                                                             constraints: {pattern: "0.##", min: -100, max: 100, places: 0}
+                                                             intermediateChanges: true
                                                              }, '#{rawJS wid}');
                        });
              });  
@@ -235,28 +328,30 @@ wHtml wid = do
            <div id="#{wid}">
                    |]
 
+data RadioButton = RadioButton ()
+instance HasName RadioButton
+instance HasValue RadioButton
+instance HasChecked RadioButton
+instance HasStyle RadioButton
+
 -- | Yesod widget for the RadioButtion GUI element
 wRadioButton :: String -- ^ Element Id
-                -> String -- ^ Name
-                -> String -- ^ Value
-                -> Bool -- ^ Checked
+                -> [Property RadioButton] -- ^ additional parameters
                 -> Widget -- ^ resulting Yesod widget
-wRadioButton wid name value checked = do
+wRadioButton wid paralist = do
   toWidget [julius|
             require(["dojo/ready", "dijit/form/RadioButton", "dojo/dom", "dojo/json"], function(ready, RadioButton, dom, JSON){
                        ready(function(){
                                 var myRadioButton = new RadioButton({
+                                                             #{rawJS $ parasToJS paralist}
                                                              onChange: function(val){
                                                                sendMessage("#{rawJS wid}", "GUIEvent OnChange", val, "RadioButton");
-                                                             },
-                                                             name: "#{rawJS name}",
-                                                             value: "#{rawJS value}",
-                                                             checked: #{rawJS checked}
+                                                             }
                                                              }, '#{rawJS wid}');
                        });
              });  
            |]
   toWidget [hamlet|
-           <input type="radio" id="#{wid}" name="#{name}">
+           <input type="radio" id="#{wid}" >
             |]
 

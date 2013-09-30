@@ -63,6 +63,10 @@ main = do
     -----------
   
     let port = 8080
+    let pl350 = [width := 350]
+    let plcreate = [label := "Create Entry"]
+    let pldelete = [label := "Delete Entry"]
+    let pl = []
         
     -- create layout 
     ----------------
@@ -80,19 +84,19 @@ main = do
          <table>
            <tr>
              <td>Filter Prefix:
-             <td>^{wTextBox "tb-filter-prefix"}
+             <td>^{wTextBox "tb-filter-prefix" pl}
              <td>Name:
-             <td>^{wTextBox "tb-prename"}
+             <td>^{wTextBox "tb-prename" pl}
            <tr>        
              <td>
              <td>
              <td>Surname:
-             <td>^{wTextBox "tb-surname"}
-         ^{wMultiSelect "ms-entries" 350}
+             <td>^{wTextBox "tb-surname" pl}
+         ^{wMultiSelect "ms-entries" pl350}
          <table>    
            <tr>    
-             <td>^{wButton "bt-create" "Create Entry"}
-             <td>^{wButton "bt-delete" "Delete Entry"}
+             <td>^{wButton "bt-create" plcreate}
+             <td>^{wButton "bt-delete" pldelete}
          |]
 
 

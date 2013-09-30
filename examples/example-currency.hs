@@ -23,6 +23,7 @@ main = do
     -- create layout 
     ----------------
         
+    let pl = []
     let guiLayout = do    
         wInitGUI port
         
@@ -36,10 +37,10 @@ main = do
            <table>
                    <tr>
                      <td> US Dollars
-                     <td> ^{wTextBox "tb-dollars"}
+                     <td> ^{wTextBox "tb-dollars" pl}
                    <tr>
                      <td> Euros
-                     <td> ^{wTextBox "tb-euros"} 
+                     <td> ^{wTextBox "tb-euros" pl} 
                              |]
 
 

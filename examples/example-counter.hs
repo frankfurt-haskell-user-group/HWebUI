@@ -22,8 +22,8 @@ main = do
               <H1>HWebUI - Counter Example
               The following buttons increase and decrease the counter:
                     |]
-        HW.wButton "Button1" "Up"
-        HW.wButton "Button2" "Down"
+        HW.wButton "Button1" [HW.label HW.:= "Up"]
+        HW.wButton "Button2" [HW.label HW.:= "Down"]
 
         -- finally the output text as html
         [whamlet|

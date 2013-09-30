@@ -19,6 +19,11 @@ main = do
     let port = 8080
         
     -- create gui elements and layout
+    let rba = wRadioButton "rbadd" [name := "operator", value := "opea", checked := True]
+    let rbs = wRadioButton "rbsub" [name := "operator", value := "opes", checked := False]
+    let rbm = wRadioButton "rbmul" [name := "operator", value := "opem", checked := False]
+    let rbd = wRadioButton "rbdiv" [name := "operator", value := "oped", checked := False]
+    let pl = []
     let guiLayout = do    
         wInitGUI port
         
@@ -32,18 +37,18 @@ main = do
         [whamlet|
            <table>
              <tr>
-               <td> ^{wTextBox "arg1"}
+               <td> ^{wTextBox "arg1" pl}
                <td>
                  <table>
                    <tr>
-                     <td> ^{wRadioButton "rbadd" "operator" "opea" True} add
+                     <td> ^{rba} add
                    <tr>
-                     <td> ^{wRadioButton "rbsub" "operator" "opeb" False} sub
+                     <td> ^{rbs} sub
                    <tr>
-                     <td> ^{wRadioButton "rbmul" "operator" "opec" False} mul
+                     <td> ^{rbm} mul
                    <tr>
-                     <td> ^{wRadioButton "rbdiv" "operator" "oped" False} div
-               <td> ^{wTextBox "arg2"}
+                     <td> ^{rbd} div
+               <td> ^{wTextBox "arg2" pl}
                              |]
 
 

@@ -32,7 +32,7 @@ main = do
               <p>
                     |]
 
-        wMultiSelect "mselect" 200
+        wMultiSelect "mselect" [style := "width:\"200\""]
         wHtml "output"
 
     -- create functionality 

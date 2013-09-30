@@ -17,7 +17,16 @@ module HWebUI(
   wNumberTextBox,
   wRadioButton,
   wTextBox,
-  
+  Attribute (..),
+  Property (..),
+  style,
+  height,
+  width,
+  label,
+  name,
+  value,
+  checked,
+
   -- * Creating the GUI Functionality with FRP
   
   -- ** How HWebUI wires (based on netwire) work
