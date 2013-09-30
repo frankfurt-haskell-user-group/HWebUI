@@ -1,9 +1,15 @@
 {- | Server is an internal implementation module of "HWebUI". "HWebUI" is providing FRP-based GUI functionality for Haskell by utilizing the Web-Browser. See module "HWebUI" for main documentation. 
 -}
+
+{-# OPTIONS_HADDOCK hide #-}
+
 module Server (
   
   Webgui (..),
   Widget,
+  
+  -- ** The background server process (built on top of Yesod)
+  -- $backgroundserver
   
   runHWebUIServer,
   waitForHWebUIServer
@@ -227,3 +233,16 @@ runHWebUIServer port gsmap guiLayout = forkChild $ runWebserver port gsmap guiLa
 -- | wait for HWebUIServer to terminate
 waitForHWebUIServer :: IO ()
 waitForHWebUIServer = waitForChildren
+
+
+{- $backgroundserver
+
+To run a web based GUI, we need a background Webserver. In the case of HWebUI this purpose is achieved by leveraging the Yesod webserver. In addition to serving the HTML pages, which build the static framework for the GUI, the Yesod server also provides the mechanism to implement a websockets based communication between the Browser and the Haskell process running the FRP based GUI. All this functionality is implemented in a pilot implementation mode in the "Server" module. According to this explanation functionality in the "Server" module is grouped into two parts, one is about providing the HTML/Javascript based landing page for the GUI and one is to accept a connection for a websocket communication and handle this specific communication channel.
+
+The function which runs the background server is called 'runWebserver' and it includes both parts, it defines a Yesod settings data structure, which includes the websocket interception option. It also creates the base type of the Yesod server which includes the layout of the landing page. This is needed, since we want flexible layouts for the landing page, not linked to the function running the server. Then it starts the the Yesod server.
+
+The functions which implement the websocket communication are the 'socketAcceptFunction', 'readSocketLoop' and the 'socketHandlingFunction', which spawns the write loop for writing towards the socket and then calls the 'readSocketLoop' function. The 'socketAcceptFunction' is called given as the anchor function in the websocket configuration inside the 'runWebserver' function.
+
+The basic Yesod webserver is implemented the usual way, two annotation may be made: there is a specific base layout defined to include the Dojokit "claro" style in the body element of the HTML page. Also the layout of the one and only render page is not hard coded but given as a paramter to the configuration, so that it can be implemented later, as can be seen in the examples.
+
+-}
