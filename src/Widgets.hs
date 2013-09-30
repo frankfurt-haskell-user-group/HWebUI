@@ -22,17 +22,7 @@ module Widgets (
   wMultiSelect,
   wNumberTextBox,
   wRadioButton,
-  wTextBox,
-  
-  Attribute (..),
-  Property (..),
-  style,
-  height,
-  width,
-  label,
-  name,
-  value,
-  checked
+  wTextBox
   
   -- ** Widget Implementation
   -- $widgets
@@ -40,13 +30,11 @@ module Widgets (
   ) where
 
 import Yesod
-import System.IO (hFlush, stdout)
-import Text.Julius (rawJS, ToJavascript, toJavascript)
-import Data.Text.Lazy.Builder (fromString, Builder)
+import Text.Julius (rawJS)
 import Prelude hiding ((.), id)
-import Data.Text (pack) 
 import Data.List (intersperse)
 
+import Properties
 import Server
 
 -- | Yesod widget to initialize needed Javascript functionality in the HTML code of the GUI. Provides Dojokit inclusion and communication with Haskell Yesod server over websockets.
@@ -58,7 +46,6 @@ wInitGUI port = do
   addStylesheetRemote("//ajax.googleapis.com/ajax/libs/dojo/1.9.1/dijit/themes/claro/claro.css")
   toWidget [julius|
             theGuiSocket = new WebSocket("ws://localhost:#{rawJS portStr}/guisocket");
-
             createMessage = function (gmId, gmSignal, gmValue, gmType) {
                                  var msg = new Object();
                                  msg.gmId = gmId;
@@ -145,51 +132,6 @@ wInitGUI port = do
            |]
 
 
-data  Attribute w a = Attr String (String -> a -> String)
-data Property w = forall a. Attribute w a := a
-
-propToJS :: Property w -> String
-propToJS ( (:=) (Attr name toJS) value) = toJS name value
-
-class HasLabel w where
-  label :: Attribute w String
-  label = Attr "label" stringPairToJS
-
-class HasStyle w where
-  style :: Attribute w String
-  style = Attr "style" stringPairToJS
-
-class HasName w where
-  name :: Attribute w String
-  name = Attr "name" stringPairToJS
-
-class HasValue w where
-  value :: Attribute w String
-  value = Attr "value" stringPairToJS
-
-class HasChecked w where
-  checked :: Attribute w Bool
-  checked = Attr "checked" boolPairToJS
-
-class HasSize w where
-  width :: Attribute w Int
-  height :: Attribute w Int
-  width = Attr "width" intPairToJS
-  height = Attr "height" intPairToJS
-
-
-
-intPairToJS :: String -> Int -> String
-intPairToJS s i =  s ++ ": "  ++ (show i)
-floatPairToJS :: String -> Float -> String
-floatPairToJS s f = s ++ ": "  ++ (show f)
-boolPairToJS :: String -> Bool -> String
-boolPairToJS s b = s ++ ": " ++ (if b then "true" else "false")
-stringPairToJS :: String -> String -> String
-stringPairToJS s1 s2 = s1 ++ ": \"" ++ s2 ++ "\""
-  
-parasToJS :: [Property w] -> String
-parasToJS pl = foldl (++) "" $ (\l -> if null l then l else l ++ [","])  $ intersperse "," $ map propToJS pl
 
 data Button = Button ()
 instance HasLabel Button

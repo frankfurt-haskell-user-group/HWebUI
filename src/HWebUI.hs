@@ -13,6 +13,9 @@ module HWebUI(
   -- ** Functions to run the GUI  
   runHWebUI,
   
+  -- * Parameter Handling
+  module Properties,
+  
   -- * Implementation Details
   module Messaging,
   module Server,
@@ -29,6 +32,8 @@ import Messaging
 import Widgets
 import Server
 import Wires
+import Properties
+
 import Control.Monad.State
 import Data.Map
 
