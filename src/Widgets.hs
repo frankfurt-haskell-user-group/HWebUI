@@ -144,10 +144,6 @@ class HasStyle w where
   style :: Attribute w String
   style = Attr "style" stringPairToJS
 
-class HasConstraints w where
-  constraints :: Attribute w JavaScript
-  style = Attr "style" stringPairToJS
-
 class HasName w where
   name :: Attribute w String
   name = Attr "name" stringPairToJS
