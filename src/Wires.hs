@@ -1,7 +1,10 @@
 {- | Wires is an internal implementation module of "HWebUI". "HWebUI" is providing FRP-based GUI functionality for Haskell by utilizing the Web-Browser. See module "HWebUI" for main documentation. 
 -}
+{-# OPTIONS_HADDOCK hide #-}
+
 module Wires (
   
+  -- ** The netwire wires (basic functionality)
   buttonW,
   checkBoxW,
   htmlW,
@@ -9,6 +12,10 @@ module Wires (
   numberTextBoxW,
   radioButtonW,
   textBoxW,
+  
+  -- ** functions to extend basic wires with additional functionality
+  -- $advancedwire
+  
   
   loopHWebUIWire,
   
@@ -202,3 +209,11 @@ _loopAWire wire session = do
 
 loopHWebUIWire :: Wire e IO () b -> IO ()
 loopHWebUIWire theWire = _loopAWire theWire clockSession
+
+
+{- $advancedwire
+
+to be done
+
+-}
+

@@ -1,7 +1,13 @@
 {- | Messaging is an internal implementation module of "HWebUI". "HWebUI" is providing FRP-based GUI functionality for Haskell by utilizing the Web-Browser. See module "HWebUI" for main documentation. 
 -}
+
+{-# OPTIONS_HADDOCK hide #-}
+
 module Messaging (
   
+  -- ** Communication between Javascript/HTML Widget world and FRP Wire world
+  -- $messaging
+
   -- * Data Types, used for messages and message buffers
   GUIElementId,
   GUIElementType (..),
@@ -143,3 +149,12 @@ sendGMReadChannel gsc = _readChannel (sendToGUI gsc)
 receiveGMWriteChannel :: GSChannel -> GUIMessage -> IO ()
 receiveGMWriteChannel gsc msg = _writeChannel (receiveFromGUI gsc) msg
 
+{- $messaging
+
+The communication between the Browser and the Haskell program running the HWebUI GUI is implemented over one websocket. The basic websocket code is realised in the "Server" module. Messages are passed back and forth through this one websocket and are stored in between in data structures called Channels. Each GUI element owns it's own channel and there is a channel map, which is indexed by the GUI Element ID. The basic code for the Channels can be found in the "Messaging" module. In this module also the data structure for the 'GUIMessage' data type is defined, which includes  for each message a 'GUISignal', a 'GUIValue', a 'GUIElementType' and a 'GUIElementId'. All those data types can be send over the Websocket as JSON data and are used only for internal purpose of this communication channel. The "Messaging" module exports functions to create Channels for messages and send and receive them. 
+
+Those functions are used in the "Server" module, to receive messages from the websocket and push them to the channels of the single GUI elements. Additional functions are used in the FRP wire implementations in the "Wires" module to pop the messages from the channels during a receive action. The sending of messages towards the GUI elements works the other way around. Messages are pushed from the FRP code towards the channels and in the "Wires" module and in the "Server" module those messages are pushed through the websocket towards the Browswer.
+
+In the Browser Messages are sent and received over JSON sending and receiving. The code for that is located in the "Widgets" module as Javascript implementation. The 'wInitGUI' widget comes with the Javascript code to reveive JSON messages from the Haskell based backend server and distribute it towards the single GUI elemens. The single widgets contain Javascript code to send JSON messages towards the Haskell based backend server.
+
+-}

@@ -1,5 +1,8 @@
 {- | GUIValue is an internal implementation module of "HWebUI". "HWebUI" is providing FRP-based GUI functionality for Haskell by utilizing the Web-Browser. See module "HWebUI" for main documentation. 
 -}
+
+{-# OPTIONS_HADDOCK hide #-}
+
 module GUIValue (
   GUIValue (..)
   ) where
