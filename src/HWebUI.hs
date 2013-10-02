@@ -12,6 +12,7 @@ module HWebUI(
   
   -- ** Functions to run the GUI  
   runHWebUI,
+  runHWebUIWW,
   
   -- * Parameter Handling
   module Properties,
@@ -19,7 +20,7 @@ module HWebUI(
   -- * Implementation Details
   module Messaging,
   module Server,
-  
+  module WidgetWires
   ) where
 
 import Yesod
@@ -35,7 +36,8 @@ import Wires
 import Properties
 
 import Control.Monad.State
-import Data.Map
+import FreshId
+import WidgetWires
 
 -- | this function runs the HWebUI web server (the Yesod server), runs the netwire loop and wait for termination
 runHWebUI port guiLayout channelStateWire = do
@@ -45,6 +47,16 @@ runHWebUI port guiLayout channelStateWire = do
     runHWebUIServer port gsmap' guiLayout
     loopHWebUIWire theWire
     waitForHWebUIServer
+ 
+runHWebUIWW :: Int -> NamedWidgetWire () b Widget -> IO ()
+runHWebUIWW port namedWidgetWire =
+   case evalSupplyVars namedWidgetWire 
+   of WidgetWire layout wire -> 
+       let guiLayout = do
+           wInitGUI port
+           layout
+       in 
+       runHWebUI port guiLayout wire
 
 
 {- $rungui

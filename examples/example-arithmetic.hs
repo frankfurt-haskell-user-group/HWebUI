@@ -6,6 +6,7 @@ import Control.Wire
 import Prelude hiding ((.), id)
 
 import HWebUI
+import qualified WidgetWires as WW
 
 -- a double conversion function
 atof :: String -> Double
@@ -13,19 +14,22 @@ atof instr = case reads instr of
      [] -> 0.0
      [(f, x)] -> f
       
-main :: IO ()
-main = do
-    -- settings 
-    let port = 8080
-        
-    -- create gui elements and layout
-    let rba = wRadioButton "rbadd" [name := "operator", value := "opea", checked := True]
-    let rbs = wRadioButton "rbsub" [name := "operator", value := "opes", checked := False]
-    let rbm = wRadioButton "rbmul" [name := "operator", value := "opem", checked := False]
-    let rbd = wRadioButton "rbdiv" [name := "operator", value := "oped", checked := False]
+
+namedWidgetWire = do
     let pl = []
+    WW.WidgetWire wTextBoxArg1 textBoxArg1W <- WW.wwTextBox
+    WW.WidgetWire wTextBoxArg2 textBoxArg2W <- WW.wwTextBox
+    WW.WidgetWire wRadioButtonAdd radioButtonAddW <- WW.wwRadioButton        
+    WW.WidgetWire wRadioButtonSub radioButtonSubW <- WW.wwRadioButton        
+    WW.WidgetWire wRadioButtonMul radioButtonMulW <- WW.wwRadioButton        
+    WW.WidgetWire wRadioButtonDiv radioButtonDivW <- WW.wwRadioButton       
+    WW.WidgetWire wOut outW <- WW.wwHtml
+    -- create gui elements and layout
+    let rba = [name := "operator", value := "opea", checked := True]
+    let rbs = [name := "operator", value := "opes", checked := False]
+    let rbm = [name := "operator", value := "opem", checked := False]
+    let rbd = [name := "operator", value := "oped", checked := False]
     let guiLayout = do    
-        wInitGUI port
         
         -- a table with the entry fields (as text) the operator and the result
         [whamlet|
@@ -37,18 +41,18 @@ main = do
         [whamlet|
            <table>
              <tr>
-               <td> ^{wTextBox "arg1" pl}
+               <td> ^{wTextBoxArg1  pl}
                <td>
                  <table>
                    <tr>
-                     <td> ^{rba} add
+                     <td> ^{wRadioButtonAdd rba}
                    <tr>
-                     <td> ^{rbs} sub
+                     <td> ^{wRadioButtonSub rbs}
                    <tr>
-                     <td> ^{rbm} mul
+                     <td> ^{wRadioButtonMul rbm}
                    <tr>
-                     <td> ^{rbd} div
-               <td> ^{wTextBox "arg2" pl}
+                     <td> ^{wRadioButtonDiv rbd}
+               <td> ^{wTextBoxArg2  pl}
                              |]
 
 
@@ -57,18 +61,18 @@ main = do
               <p>And here the output value: 
               <p>
         |]
-        wHtml "out1" 
+        wOut
 
     -- create netwire gui elements
     let theWire = do
-        
-         arg1 <- textBoxW "arg1"
-         arg2 <- textBoxW "arg2"
-         addB <- radioButtonW "rbadd"
-         subB <- radioButtonW "rbsub"
-         mulB <- radioButtonW "rbmul"
-         divB <- radioButtonW "rbdiv"
-         out1 <- htmlW "out1"
+       
+         arg1 <- textBoxArg1W
+         arg2 <- textBoxArg2W
+         addB <- radioButtonAddW
+         subB <- radioButtonSubW
+         mulB <- radioButtonMulW
+         divB <- radioButtonDivW
+         out1 <- outW
              
 
        -- build the FRP wire, arrow notation
@@ -86,16 +90,18 @@ main = do
                                          | bsub = (-)
                                          | bmul = (*) 
                                          | bdiv = (/) 
-                                         | otherwise = \ x y -> 0.0
+                                         | otherwise = \ _ _ -> 0.0
                                     
                                     let res = op (atof a1) (atof a2)
                                     returnA -< res                             
 
          return $ out1 .  ((Just . show) <$> result) . pure Nothing
     
-    -- run the webserver, the netwire loop and wait for termination   
-    runHWebUI port guiLayout theWire
-
-    return ()
+    return (WW.WidgetWire guiLayout theWire)
     
-
+main :: IO ()
+main = do
+         -- settings 
+         let port = 8080
+         -- run the webserver, the netwire loop and wait for termination   
+         runHWebUIWW port namedWidgetWire 

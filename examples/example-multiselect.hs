@@ -13,46 +13,57 @@ atof instr = case reads instr of
      [] -> 0.0
      [(f, x)] -> f
       
-main :: IO ()
-main = do
-    -- settings 
-    -----------
-  
-    let port = 8080
-        
+namedWidgetWire = do
+    let plButtonStart = [label := "Start"]
+        pl350 = [width := 350]
+    
+    WidgetWire wMultiSelect multiSelectW <- wwMultiSelect 
+    WidgetWire wButtonStart buttonStartW <- wwButton            
+    WidgetWire wOut outW <- wwHtml
+
     -- create layout 
     ----------------
-        
+
     let guiLayout = do    
-        wInitGUI port
         
         -- a table with the entry fields (as text) the operator and the result
         [whamlet|
               <H1>HWebUI - MultiSelect Example
               <p>
-                    |]
-
-        wMultiSelect "mselect" [style := "width:\"200\""]
-        wHtml "output"
+                   |]
+        [whamlet|
+         <table>
+           <tr>
+             <td>^{wButtonStart plButtonStart}
+         |]
+        
+        wMultiSelect pl350
+        wOut
 
     -- create functionality 
     -----------------------
-    let channelAndWire = do    
-        mselect <- multiSelectW "mselect" 
-        output<- htmlW "output" 
+    let theWire = do    
+        start <- buttonStartW
+        mselect <- multiSelectW 
+        output<- outW 
         
-    -- build the FRP wire, arrow notation, with recursion, using delay (!)
-        let w1 = mselect . (once . pure ( Just [("one", False, "data from one"), 
+        -- build the FRP wire, arrow notation, with recursion, using delay (!)
+        let choices = pure ( Just [("one", False, "data from one"), 
                                              ("two", False, "data from two"), 
                                              ("three", False, "data from three"), 
-                                             ("four", False, "data from four")]) 
-                         <|> pure Nothing) 
-        let w2 = output . (Just . Prelude.foldl (\a b -> a ++ " " ++ show b) "Selected: " 
+                                             ("four", False, "data from four")])
+        let w1 = mselect . (start *> (once . choices <|> pure Nothing)
+                             )
+        let w2 = output . (Just . Prelude.foldl (\a b -> a ++ " " ++ b) "Selected: " 
                        <$> id) 
                     . w1
         return w2
-    
-    -- run the webserver, the netwire loop and wait for termination   
-    runHWebUI port guiLayout channelAndWire
 
-    return ()
+    return (WidgetWire guiLayout theWire)
+
+main :: IO ()
+main = do
+         -- settings 
+         let port = 8080
+         -- run the webserver, the netwire loop and wait for termination   
+         runHWebUIWW port namedWidgetWire     
