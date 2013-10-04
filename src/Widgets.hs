@@ -22,7 +22,11 @@ module Widgets (
   wMultiSelect,
   wNumberTextBox,
   wRadioButton,
-  wTextBox
+  wTextBox,
+  Button,
+  TextBox,
+  RadioButton,
+  MultiSelect
   
   -- ** Widget Implementation
   -- $widgets

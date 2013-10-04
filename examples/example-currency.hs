@@ -5,28 +5,27 @@ import Yesod
 import Control.Wire
 import Prelude hiding ((.), id)
 
-import HWebUI
+
+import HWebUI as HW
+import qualified WidgetWires as WW
+
 
 -- a double conversion function
 atof :: String -> Double
 atof instr = case reads instr of
      [] -> 0.0
      [(f, x)] -> f
-      
-main :: IO ()
-main = do
-    -- settings 
-    -----------
-  
-    let port = 8080
-        
+    
+namedWidgetWire = do
+    WW.WidgetWire wTextBoxDollar textBoxDollarW <- WW.wwTextBox
+    WW.WidgetWire wTextBoxEuro textBoxEuroW <- WW.wwTextBox
+
     -- create layout 
     ----------------
         
     let pl = []
     let guiLayout = do    
-        wInitGUI port
-        
+            
         -- a table with the entry fields (as text) the operator and the result
         [whamlet|
               <H1>HWebUI - Currency Example
@@ -37,10 +36,10 @@ main = do
            <table>
                    <tr>
                      <td> US Dollars
-                     <td> ^{wTextBox "tb-dollars" pl}
+                     <td> ^{wTextBoxDollar pl}
                    <tr>
                      <td> Euros
-                     <td> ^{wTextBox "tb-euros" pl} 
+                     <td> ^{wTextBoxEuro pl} 
                              |]
 
 
@@ -50,8 +49,8 @@ main = do
         
     let theWire = do
         
-        dollars <- textBoxW "tb-dollars" 
-        euros <- textBoxW "tb-euros" 
+        dollars <- textBoxDollarW 
+        euros <- textBoxEuroW 
         
         -- build the FRP wire, arrow notation, with recursion, using delay (!)
     
@@ -77,10 +76,11 @@ main = do
           
         return runW
     
-    -- run the webserver, the netwire loop and wait for termination   
-    runHWebUI port guiLayout theWire
-    
-    return ()
-    
-    
+    return (WW.WidgetWire guiLayout theWire)
 
+main :: IO ()
+main = do
+         -- settings 
+         let port = 8080
+         -- run the webserver, the netwire loop and wait for termination   
+         HW.runHWebUIWW port namedWidgetWire 
