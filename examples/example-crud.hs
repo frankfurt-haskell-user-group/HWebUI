@@ -4,12 +4,12 @@ module Main where
 import Yesod
 import Control.Wire
 import Prelude hiding ((.), id)
+
+import HWebUI
+
 import Data.Maybe
 import Data.List hiding (delete)
 import Control.Lens
-
-import HWebUI
-import qualified WidgetWires as WW
 
 -- a double conversion function
 atof :: String -> Double
@@ -56,20 +56,19 @@ makeEntries names selection filtertxt = filter ffilter $ fmap fentry (zip names 
 onChangeJust :: Bool -> a -> Maybe a
 onChangeJust b work = if b then Just work else Nothing
           
-namedWidgetWire = do
-    let pl350 = [width := 350]
-    let plcreate = [label := "Create Entry"]
-    let pldelete = [label := "Delete Entry"]
-    let pl = []
-    WW.WidgetWire wTextBoxFilterPrefix textBoxFilterPrefixW <- WW.wwTextBox
-    WW.WidgetWire wTextBoxPrename textBoxPrenameW <- WW.wwTextBox
-    WW.WidgetWire wTextBoxSurname textBoxSurnameW <- WW.wwTextBox
-    WW.WidgetWire wButtonCreate buttonCreateW <- WW.wwButton 
-    WW.WidgetWire wButtonDelete buttonDeleteW <- WW.wwButton
-    WW.WidgetWire wMultiSelectEntries multiSelectEntriesW <- WW.wwMultiSelect
+guiDefinition = do
+
+    -- define gui elements
+    textBoxFilterPrefix <- hwuTextBox []
+    textBoxPrename <- hwuTextBox []
+    textBoxSurname <- hwuTextBox []
+    
+    multiSelectEntries <- hwuMultiSelect [width := 350]
+    
+    buttonCreate <- hwuButton [label := "Create Entry"]
+    buttonDelete <- hwuButton [label := "Delete Entry"]
         
-    -- create layout 
-    ----------------
+    -- define layout 
         
     let guiLayout = do    
         
@@ -83,40 +82,38 @@ namedWidgetWire = do
          <table>
            <tr>
              <td>Filter Prefix:
-             <td>^{wTextBoxFilterPrefix pl}
+             <td>^{hwuLayout textBoxFilterPrefix}
              <td>Name:
-             <td>^{wTextBoxPrename pl}
+             <td>^{hwuLayout textBoxPrename}
            <tr>        
              <td>
              <td>
              <td>Surname:
-             <td>^{wTextBoxSurname pl}
-         ^{wMultiSelectEntries pl350}
+             <td>^{hwuLayout textBoxSurname}
+         ^{hwuLayout multiSelectEntries}
          <table>    
            <tr>    
-             <td>^{wButtonCreate plcreate}
-             <td>^{wButtonDelete pldelete}
+             <td>^{hwuLayout buttonCreate}
+             <td>^{hwuLayout buttonDelete}
          |]
 
 
-    -- create functionality 
-    -----------------------
+    -- define functionality 
         
-    let theWire = do
-        
-        prefix<- textBoxFilterPrefixW 
-        prenameTxt <- textBoxPrenameW 
-        surnameTxt <- textBoxSurnameW
-        create <- buttonCreateW
-        entrieslist <- multiSelectEntriesW
-        delete <- buttonDeleteW
+       
+    let prefix = hwuWire textBoxFilterPrefix 
+    let prenameTxt = hwuWire textBoxPrename 
+    let surnameTxt = hwuWire textBoxSurname
+    let create = hwuWire buttonCreate
+    let entrieslist = hwuWire multiSelectEntries
+    let delete = hwuWire buttonDelete
     
         -- build the FRP wires
-        let addNameW = mkFix (\_ names -> Right (names ++ [Name "New Entry" "Edit me!"]))
-        let delNamesW = mkFix (\_ (names, selection) -> Right (fst <$> filter (\(_, i) ->  i `notElem` selection) (zip names [0..]) ))
+    let addNameW = mkFix (\_ names -> Right (names ++ [Name "New Entry" "Edit me!"]))
+    let delNamesW = mkFix (\_ (names, selection) -> Right (fst <$> filter (\(_, i) ->  i `notElem` selection) (zip names [0..]) ))
 
         -- main wire to process crud element
-        let w1 = proc (names, selection, filtertxt) -> do             -- all state is kept in entries and filtertext
+    let w1 = proc (names, selection, filtertxt) -> do             -- all state is kept in entries and filtertext
                 -- check for changes
                 fchange <- isJust <$> event changed -< filtertxt
                 nchange <- isJust <$> event changed -< names
@@ -159,18 +156,17 @@ namedWidgetWire = do
                                 returnA -< (names, selection, filtertxt)
                 returnA -< (names', selection', filtertxt')
 
-        let w2 = proc _ -> do
+    let w2 = proc _ -> do
                        rec
                          (names, selection, filtertxt) <- delay ([]::Names, []::Selection, ""::String) -< (names', selection', filtertxt')
                          (names', selection', filtertxt') <- w1 -< (names, selection, filtertxt)
                        returnA -< ()
-        return w2
     
-    return (WW.WidgetWire guiLayout theWire)
+    return (guiLayout, w2)
     
 main :: IO ()
 main = do
          -- settings 
          let port = 8080
          -- run the webserver, the netwire loop and wait for termination         
-         runHWebUIWW port namedWidgetWire 
+         runHWebUI port guiDefinition 

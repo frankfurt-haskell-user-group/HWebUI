@@ -26,7 +26,8 @@ module Widgets (
   Button,
   TextBox,
   RadioButton,
-  MultiSelect
+  MultiSelect,
+  HtmlText
   
   -- ** Widget Implementation
   -- $widgets
@@ -277,12 +278,17 @@ wNumberTextBox wid paralist = do
            <input id="#{wid}" type="text">
             |]
 
+
+data HtmlText = HtmlText ()
+instance HasStyle HtmlText
+
 -- | Yesod widget for the PlainHtml GUI element (an element which is used for dynamic HTML output
 wHtml :: String -- ^ Element Id
+         -> [Property HtmlText] -- ^ additional parameters
          -> Widget -- ^ resulting Yesod widget
-wHtml wid = do
+wHtml wid paralist = do
   toWidget [hamlet|
-           <div id="#{wid}">
+           <div id="#{wid}" style=#{parasToJS paralist}>
                    |]
 
 data RadioButton = RadioButton ()

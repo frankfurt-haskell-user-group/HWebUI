@@ -4,37 +4,87 @@ module WidgetWires where
 import Server
 import Wires
 import Widgets
-import FreshId
 import Properties
 
-class PropertyWidget t
+import Control.Monad.State (StateT, put, get)
+import Control.Monad.Trans (liftIO)
+import Data.Map (fromList)
 
-instance PropertyWidget ([Property c] -> Widget)
 
-instance PropertyWidget Widget
+data WidgetWire a b = WidgetWire {
+        hwuLayout :: Widget,
+        hwuWire :: GUIWire a b 
+        }
 
-data WidgetWire a b t = PropertyWidget t => WidgetWire t (ChannelStateGUIWire a b)
+data GuiState = GuiState {
+        channelMap :: GSChannelMap,
+        idCounter :: Int }
+        
+type WWMonad a = StateT GuiState IO a
 
-type NamedWidgetWire a b t= SupplyVars (WidgetWire a b t)
+initGuiState = GuiState ( (fromList [])::GSChannelMap ) 0
 
-giveAnId :: PropertyWidget t => (String -> t) 
-        -> (String -> ChannelStateGUIWire a b) 
-        -> NamedWidgetWire a b t 
-giveAnId wWidget wireW = do
-        ident <- supply
-        return $ WidgetWire (wWidget ident) (wireW ident)
+freshId :: String -> WWMonad String
+freshId prefix = do
+        gs <- get
+        let idc = idCounter gs
+        let cm = channelMap gs
+        put (GuiState cm (idc + 1))
+        return $ prefix ++ (show idc)
 
-wwButton :: NamedWidgetWire a a ([Property Button] -> Widget)
-wwButton = giveAnId wButton buttonW
+getCMap :: WWMonad GSChannelMap
+getCMap = do
+        gs <- get
+        return (channelMap gs)
+        
+putCMap :: GSChannelMap -> WWMonad ()
+putCMap cmap = do
+        gs <- get
+        put $ GuiState cmap (idCounter gs)
+        return ()
 
-wwHtml :: NamedWidgetWire (Maybe String) String Widget
-wwHtml = giveAnId wHtml htmlW
+hwuButton :: [Property Button] -> WWMonad (WidgetWire a a)
+hwuButton props = do
+        elid <- freshId "hwuId"
+        cmap <- getCMap
+        let l = wButton elid props
+        (w, nmap) <- liftIO $ buttonW elid cmap
+        putCMap nmap
+        return $ WidgetWire l w
 
-wwTextBox :: NamedWidgetWire (Maybe String) String ([Property TextBox] -> Widget)
-wwTextBox = giveAnId wTextBox textBoxW
- 
-wwRadioButton :: NamedWidgetWire (Maybe Bool) Bool ([Property RadioButton] -> Widget)
-wwRadioButton = giveAnId wRadioButton radioButtonW
- 
-wwMultiSelect :: NamedWidgetWire (Maybe [(String, Bool, a)]) [a] ([Property MultiSelect] -> Widget)
-wwMultiSelect = giveAnId wMultiSelect multiSelectW
+hwuHtml :: [Property HtmlText] -> WWMonad (WidgetWire (Maybe String) String)
+hwuHtml props = do
+        elid <- freshId "hwuId"
+        cmap <- getCMap
+        let l = wHtml elid props
+        (w, nmap) <- liftIO $ htmlW elid cmap
+        putCMap nmap
+        return $ WidgetWire l w
+
+hwuTextBox :: [Property TextBox] -> WWMonad (WidgetWire (Maybe String) String)
+hwuTextBox props = do
+        elid <- freshId "hwuId"
+        cmap <- getCMap
+        let l = wTextBox elid props
+        (w, nmap) <- liftIO $ textBoxW elid cmap
+        putCMap nmap
+        return $ WidgetWire l w
+
+hwuRadioButton :: [Property RadioButton] -> WWMonad (WidgetWire (Maybe Bool) Bool)
+hwuRadioButton props = do
+        elid <- freshId "hwuId"
+        cmap <- getCMap
+        let l = wRadioButton elid props
+        (w, nmap) <- liftIO $ radioButtonW elid cmap
+        putCMap nmap
+        return $ WidgetWire l w
+
+hwuMultiSelect :: [Property MultiSelect] -> WWMonad (WidgetWire (Maybe [(String, Bool, a)]) [a])
+hwuMultiSelect props = do
+        elid <- freshId "hwuId"
+        cmap <- getCMap
+        let l = wMultiSelect elid props
+        (w, nmap) <- liftIO $ multiSelectW elid cmap
+        putCMap nmap
+        return $ WidgetWire l w
+

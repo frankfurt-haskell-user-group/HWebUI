@@ -6,7 +6,6 @@ import Control.Wire
 import Prelude hiding ((.), id)
 
 import HWebUI
-import qualified WidgetWires as WW
 
 -- a double conversion function
 atof :: String -> Double
@@ -15,20 +14,15 @@ atof instr = case reads instr of
      [(f, x)] -> f
       
 
-namedWidgetWire = do
-    let pl = []
-    WW.WidgetWire wTextBoxArg1 textBoxArg1W <- WW.wwTextBox
-    WW.WidgetWire wTextBoxArg2 textBoxArg2W <- WW.wwTextBox
-    WW.WidgetWire wRadioButtonAdd radioButtonAddW <- WW.wwRadioButton        
-    WW.WidgetWire wRadioButtonSub radioButtonSubW <- WW.wwRadioButton        
-    WW.WidgetWire wRadioButtonMul radioButtonMulW <- WW.wwRadioButton        
-    WW.WidgetWire wRadioButtonDiv radioButtonDivW <- WW.wwRadioButton       
-    WW.WidgetWire wOut outW <- WW.wwHtml
-    -- create gui elements and layout
-    let rba = [name := "operator", value := "opea", checked := True]
-    let rbs = [name := "operator", value := "opes", checked := False]
-    let rbm = [name := "operator", value := "opem", checked := False]
-    let rbd = [name := "operator", value := "oped", checked := False]
+guiDefinition = do
+    textBoxArg1 <- hwuTextBox []
+    textBoxArg2 <- hwuTextBox []
+    radioButtonAdd <- hwuRadioButton [name := "operator", value := "opea", checked := True]        
+    radioButtonSub <- hwuRadioButton [name := "operator", value := "opes", checked := False]        
+    radioButtonMul <- hwuRadioButton [name := "operator", value := "opem", checked := False]        
+    radioButtonDiv <- hwuRadioButton [name := "operator", value := "oped", checked := False]       
+    out <- hwuHtml []
+    
     let guiLayout = do    
         
         -- a table with the entry fields (as text) the operator and the result
@@ -41,18 +35,18 @@ namedWidgetWire = do
         [whamlet|
            <table>
              <tr>
-               <td> ^{wTextBoxArg1  pl}
+               <td> ^{hwuLayout textBoxArg1}
                <td>
                  <table>
                    <tr>
-                     <td> ^{wRadioButtonAdd rba}
+                     <td>add ^{hwuLayout radioButtonAdd}
                    <tr>
-                     <td> ^{wRadioButtonSub rbs}
+                     <td>sub ^{hwuLayout radioButtonSub}
                    <tr>
-                     <td> ^{wRadioButtonMul rbm}
+                     <td>mul ^{hwuLayout radioButtonMul}
                    <tr>
-                     <td> ^{wRadioButtonDiv rbd}
-               <td> ^{wTextBoxArg2  pl}
+                     <td>div ^{hwuLayout radioButtonDiv}
+               <td> ^{hwuLayout textBoxArg2}
                              |]
 
 
@@ -61,47 +55,34 @@ namedWidgetWire = do
               <p>And here the output value: 
               <p>
         |]
-        wOut
+        (hwuLayout out)
 
-    -- create netwire gui elements
-    let theWire = do
-       
-         arg1 <- textBoxArg1W
-         arg2 <- textBoxArg2W
-         addB <- radioButtonAddW
-         subB <- radioButtonSubW
-         mulB <- radioButtonMulW
-         divB <- radioButtonDivW
-         out1 <- outW
-             
-
-       -- build the FRP wire, arrow notation
     
-         let result = proc _ -> do
-                                    a1 <- hold "" arg1 -< Nothing
-                                    a2 <- hold "" arg2 -< Nothing
-                                    badd <- hold True addB -< Nothing
-                                    bsub <- hold False subB -< Nothing
-                                    bmul <- hold False mulB -< Nothing
-                                    bdiv <- hold False divB -< Nothing
-                                    
-                                    let op 
-                                         | badd = (+)
-                                         | bsub = (-)
-                                         | bmul = (*) 
-                                         | bdiv = (/) 
-                                         | otherwise = \ _ _ -> 0.0
-                                    
-                                    let res = op (atof a1) (atof a2)
-                                    returnA -< res                             
+    let wireIn = proc _ -> do
+            a1 <- hold "" (hwuWire textBoxArg1) -< Nothing
+            a2 <- hold "" (hwuWire textBoxArg2) -< Nothing
+            badd <- hold True (hwuWire radioButtonAdd) -< Nothing
+            bsub <- hold False (hwuWire radioButtonSub) -< Nothing
+            bmul <- hold False (hwuWire radioButtonMul) -< Nothing
+            bdiv <- hold False (hwuWire radioButtonDiv) -< Nothing
+            
+            let op 
+                 | badd = (+)
+                 | bsub = (-)
+                 | bmul = (*) 
+                 | bdiv = (/) 
+                 | otherwise = \ _ _ -> 0.0
+            
+            let res = op (atof a1) (atof a2)
+            returnA -< res                             
 
-         return $ out1 .  ((Just . show) <$> result) . pure Nothing
+    let theWire = (hwuWire out) .  ((Just . show) <$> wireIn) . pure Nothing
     
-    return (WW.WidgetWire guiLayout theWire)
+    return (guiLayout, theWire)
     
 main :: IO ()
 main = do
          -- settings 
          let port = 8080
          -- run the webserver, the netwire loop and wait for termination   
-         runHWebUIWW port namedWidgetWire 
+         runHWebUI port guiDefinition 

@@ -2,19 +2,18 @@
 module Main where
 
 import Yesod
-import qualified Control.Wire as CW
-import Control.Wire (pure, (<|>), (<$>), (.))
+import Control.Wire
 import Prelude hiding ((.), id)
 
-import qualified HWebUI as HW
-import qualified WidgetWires as WW
+import HWebUI
 
-namedWidgetWire = do
-         WW.WidgetWire wButton1 button1W <- WW.wwButton
-         WW.WidgetWire wButton2 button2W <- WW.wwButton    
-         WW.WidgetWire wOut outW <- WW.wwHtml
+guiDefinition = do
+         -- define GUI Elements 
+         buttonUp <- hwuButton [label := "Counter Up"]
+         buttonDown <- hwuButton [label := "Counter Down"]
+         outHtml <- hwuHtml []
      
-         -- create gui elements and layout
+         -- define layout
          let guiLayout = do    
                       
              -- buttons
@@ -22,42 +21,39 @@ namedWidgetWire = do
                    <H1>HWebUI - Counter Example
                    The following buttons increase and decrease the counter:
                          |]
-             wButton1 [HW.label HW.:= "Up"]
-             wButton2 [HW.label HW.:= "Down"]
+             (hwuLayout buttonUp)
+             (hwuLayout buttonDown)
      
              -- finally the output text as html
              [whamlet|
                    <p>And here the output value: 
                    <p>
              |]
-             wOut 
+             (hwuLayout outHtml) 
      
-         -- create netwire gui elements
-         let theWire = do
+         -- define functionality
+--         let guiWire = do
              
-             up <- button1W 
-             down <- button2W 
-             output <- outW 
+         let up = hwuWire buttonUp 
+         let down = hwuWire buttonDown 
+         let output = hwuWire outHtml 
              
-             -- build the FRP wire, we need a counter, which increases a value at each up event and decreases it at each down event
+         -- build the FRP wire, we need a counter, which increases a value at each up event and decreases it at each down event
          
-             -- this wire counts from 0, part of prefab netwire Wires
-             let cnt = CW.countFrom (0::Int)
-     
-             -- this wire adds one on button up, substracts one on button down, return id on no button press
-             let w1 = cnt . ( up . pure 1 <|> down . pure (-1)  <|> pure 0 )
-     
-             -- stringify the output result (applicative style)
-             let strw1 = (Just . show ) <$> w1
+         -- this wire counts from 0, part of prefab netwire Wires
+         let cnt = countFrom (0::Int)
+         -- this wire adds one on button up, substracts one on button down, return id on no button press
+         let w1 = cnt . ( up . pure 1 <|> down . pure (-1)  <|> pure 0 )
+         -- stringify the output result (applicative style)
+         let strw1 = (Just . show ) <$> w1
              
-             -- set the output on change only
-             return $ output . CW.changed . strw1 
+         -- set the output on change only
+         let guiWire = output . changed . strw1 
         
-         return (WW.WidgetWire guiLayout theWire) 
+         return (guiLayout, guiWire) 
           
 main :: IO ()
 main = do
          -- settings 
          let port = 8080
-         -- run the webserver, the netwire loop and wait for termination         
-         HW.runHWebUIWW port namedWidgetWire 
+         runHWebUI port guiDefinition

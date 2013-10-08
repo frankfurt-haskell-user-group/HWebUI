@@ -12,7 +12,7 @@ module Wires (
   numberTextBoxW,
   radioButtonW,
   textBoxW,
-  
+    
   -- ** functions to extend basic wires with additional functionality
   -- $advancedwire
   
@@ -20,7 +20,8 @@ module Wires (
   loopHWebUIWire,
   
   GUIWire,
-  ChannelStateGUIWire
+  GSChannelMap (..)
+  
   ) where
 
 import Yesod                     (liftIO)
@@ -48,15 +49,13 @@ import Messaging                 (createChannel, gmSignal, gmValue, GSChannel, G
 -- Netwire Types
 --
 type GUIWire a b = Wire () IO a b
-type IoState s a = StateT s IO a
-type ChannelState a = IoState (Map String GSChannel) a
-type ChannelStateGUIWire a b = ChannelState (GUIWire a b)
+type GSChannelMap = Map String GSChannel
 
-addChannel  :: String -> ChannelState GSChannel 
-addChannel elid = do
-        channel <- liftIO createChannel         
-        modify $ Data.Map.insert elid channel
-        return channel
+addChannel  :: String -> GSChannelMap -> IO (GSChannel, GSChannelMap) 
+addChannel elid cmap = do
+        channel <- createChannel         
+        let newMap = Data.Map.insert elid channel cmap
+        return (channel, newMap)
 
 -- generic function to create a value wire, a value wire has type "GUIWire (Maybe a) a"
 
@@ -64,53 +63,60 @@ valueWireGen :: String -- ^ Element Id
                 -> (a -> GUIValue) -- ^ svalue creation function
                 -> (GUIValue -> b) -- ^ svalue extraction function
                 -> GUIElementType -- ^ type of GUI Element
-                -> ChannelStateGUIWire (Maybe a) b
+                -> GSChannelMap -- ^ Channels 
+                -> IO (GUIWire (Maybe a) b, GSChannelMap)
                                 
-valueWireGen elid  svalCreator svalExtractor guitype = do  
-  channel <- addChannel elid  
-  return $ mkFixM $ \t inVal -> case inVal of
-      Just bState -> do
-         sendGMWriteChannel channel (GUIMessage elid (GUICommand SetValue) (svalCreator bState) guitype)
-         return $ Left ()
-      Nothing -> do
-         rcv <- receiveGMReadChannel channel
-         case rcv of
-              Just guimsg ->
-                         if gmSignal guimsg == GUIEvent OnChange then do
-                            let bState = svalExtractor (gmValue guimsg)
-                            return $ Right bState
-                         else return $ Left ()
-              Nothing -> return $ Left () 
-                                                            
+valueWireGen elid  svalCreator svalExtractor guitype cmap = do  
+  (channel, nmap) <- addChannel elid cmap
+  let wire = mkFixM $ \t inVal -> case inVal of
+              Just bState -> do
+                 sendGMWriteChannel channel (GUIMessage elid (GUICommand SetValue) (svalCreator bState) guitype)
+                 return $ Left ()
+              Nothing -> do
+                 rcv <- receiveGMReadChannel channel
+                 case rcv of
+                      Just guimsg ->
+                                 if gmSignal guimsg == GUIEvent OnChange then do
+                                    let bState = svalExtractor (gmValue guimsg)
+                                    return $ Right bState
+                                 else return $ Left ()
+                      Nothing -> return $ Left () 
+  return (wire, nmap)                                                         
+                                                     
 
 -- | Basic wire for CheckBox GUI element functionality
 checkBoxW :: String -- ^ Element Id
-             -> ChannelStateGUIWire (Maybe Bool) Bool 
-checkBoxW elid = valueWireGen elid SVBool 
-        (\svval -> let (SVBool bstate) = svval in bstate) CheckBox
+             -> GSChannelMap -- ^ Channels
+             -> IO (GUIWire (Maybe Bool) Bool, GSChannelMap)
+checkBoxW elid cmap = valueWireGen elid SVBool 
+        (\svval -> let (SVBool bstate) = svval in bstate) CheckBox cmap
 
 -- | Basic wire for RadioButton GUI element functionality
 radioButtonW :: String -- ^ Element Id
-             -> ChannelStateGUIWire (Maybe Bool) Bool
-radioButtonW elid = valueWireGen elid SVBool (\svval -> let (SVBool bstate) = svval in bstate) RadioButton
+                -> GSChannelMap -- ^ Channels
+                -> IO (GUIWire (Maybe Bool) Bool, GSChannelMap)
+radioButtonW elid cmap = valueWireGen elid SVBool (\svval -> let (SVBool bstate) = svval in bstate) RadioButton cmap
 
 -- | Basic wire for TextBox GUI element functionality
 textBoxW :: String -- ^ Element Id
-             -> ChannelStateGUIWire (Maybe String) String
-textBoxW elid = valueWireGen elid SVString (\svval -> let (SVString bstate) = svval in bstate) TextBox
+             -> GSChannelMap -- ^ Channels
+             -> IO (GUIWire (Maybe String) String, GSChannelMap)
+textBoxW elid cmap = valueWireGen elid SVString (\svval -> let (SVString bstate) = svval in bstate) TextBox cmap
 
 -- | Basic wire for MultiSelect GUI element functionality 
 _multiSelectW :: String -- ^ Element Id
-             -> ChannelStateGUIWire (Maybe [(String, Bool)]) [(String, Bool)]
-_multiSelectW elid = valueWireGen elid  f1 f2 MultiSelect where 
+             -> GSChannelMap -- ^ Channels
+             -> IO (GUIWire (Maybe [(String, Bool)]) [(String, Bool)], GSChannelMap)
+_multiSelectW elid cmap = valueWireGen elid  f1 f2 MultiSelect cmap where 
   f1 svlist = SVList $ fmap (\val -> SVList [SVString (fst val), SVBool (snd val)]) svlist      
   f2 (SVList svlist) = split <$> svlist
       where split (SVList [SVString aval, SVBool bval]) = (aval,bval)
        
 multiSelectW :: String -- ^ Element Id
-                -> ChannelStateGUIWire (Maybe [(String, Bool, a)]) [a]
-multiSelectW elid = do
-  w1 <- _multiSelectW elid
+                -> GSChannelMap -- ^ Channels
+                -> IO (GUIWire (Maybe [(String, Bool, a)]) [a], GSChannelMap)
+multiSelectW elid cmap = do
+  (w1, nmap) <- _multiSelectW elid cmap
   let w2 = proc inval -> do
         rec 
           thingies <- delay [] -< thingies'   -- thingies is the list of thingies of type a, which will get filtered by selections
@@ -131,15 +137,18 @@ multiSelectW elid = do
         msOut <- w1 -< inval'
         returnA -< fmap snd $ Prelude.filter (\((s, sel) , th) -> sel) (Prelude.zip msOut thingies')
 
-  return w2
+  return (w2, nmap)
 
     
 
-guiWireGen :: String -> (String -> GSChannel -> IO (GUIWire a b)) 
-                -> ChannelStateGUIWire a b
-guiWireGen elid wireIn = do
-  chan <- addChannel elid
-  liftIO $ wireIn elid chan
+guiWireGen ::   String 
+                -> (String -> GSChannel -> IO (GUIWire a b))
+                -> GSChannelMap -- ^ Channels
+                -> IO (GUIWire a b, GSChannelMap)
+guiWireGen elid wireIn cmap = do
+  (chan, nmap) <- addChannel elid cmap
+  wireOut <- wireIn elid chan
+  return (wireOut, nmap)
 
 numberTextBoxW' :: String -> GSChannel -> IO (GUIWire (Maybe Double) Double)
 numberTextBoxW' boxid channel = do
@@ -163,8 +172,10 @@ numberTextBoxW' boxid channel = do
   
 -- | Basic wire for NumberTextBox GUI element functionality
 numberTextBoxW :: String -- ^ Element Id
-                -> ChannelStateGUIWire (Maybe Double) Double
-numberTextBoxW elid = guiWireGen elid numberTextBoxW'
+                  -> GSChannelMap -- ^ Channels
+
+                  -> IO (GUIWire (Maybe Double) Double, GSChannelMap)
+numberTextBoxW elid cmap = guiWireGen elid numberTextBoxW' cmap
 
 htmlW' :: String -> GSChannel -> IO (GUIWire (Maybe String) String)
 htmlW' boxid channel = do
@@ -180,8 +191,9 @@ htmlW' boxid channel = do
 
 -- | Basic wire for HTML GUI element functionality (output element with dynamic HTML)
 htmlW :: String -- ^ Element Id
-                -> ChannelStateGUIWire (Maybe String) String
-htmlW elid = guiWireGen elid htmlW'
+         -> GSChannelMap -- ^ Channels
+         -> IO (GUIWire (Maybe String) String, GSChannelMap)
+htmlW elid cmap = guiWireGen elid htmlW' cmap
 
 -- button wire
 --
@@ -197,8 +209,9 @@ buttonW' boxid channel = do
   
 -- | Basic wire for Button GUI element functionality (output element with dynamic HTML)
 buttonW :: String -- ^ Element Id
-                -> ChannelStateGUIWire a a
-buttonW elid = guiWireGen elid buttonW'
+           -> GSChannelMap -- ^ Channels
+           -> IO (GUIWire a a, GSChannelMap)
+buttonW elid cmap = guiWireGen elid buttonW' cmap
 
 _loopAWire :: Wire e IO () b -> Session IO -> IO ()
 _loopAWire wire session = do
