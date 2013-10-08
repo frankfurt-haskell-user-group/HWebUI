@@ -36,7 +36,6 @@ import Wires
 import Properties
 
 import Control.Monad.State
-import FreshId
 import WidgetWires
 
 -- | this function runs the HWebUI web server (the Yesod server), runs the netwire loop and wait for termination
