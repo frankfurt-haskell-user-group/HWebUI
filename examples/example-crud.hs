@@ -25,10 +25,15 @@ atof instr = case reads instr of
 
 -- basic names, this is the main data
      
-data Name = Name { _preName :: String, _surName :: String} deriving (Eq, Show)  -- Name Surname
-makeLenses ''Name
+data Person = Person { _preName :: String  -- Name
+                     , _surName :: String  -- Surname
+                     , _descr :: String    -- Description
+                     }
+    deriving (Eq, Show)
 
-type Names = [Name]
+makeLenses ''Person
+
+type Persons = [Person]
 
 -- triple with data, selection, index for the gui multiselect handling
 
@@ -48,10 +53,10 @@ type Selection = [Int]
 
 -- helper functions for data
 
-makeEntries :: Names -> Selection -> String -> Entries
-makeEntries names selection filtertxt = filter ffilter $ fmap fentry (zip names [0..]) where
+makeEntries :: Persons -> Selection -> String -> Entries
+makeEntries persons selection filtertxt = filter ffilter $ fmap fentry (zip persons [0..]) where
   ffilter e =  filtertxt `isInfixOf` (e ^. guiText)
-  fentry (name, i) = ((name ^. preName) ++ " " ++ (name ^. surName), i `elem` selection, i)
+  fentry (person, i) = ((person ^. preName) ++ " " ++ (person ^. surName) ++ " " ++ (person ^. descr), i `elem` selection, i)
 
 onChangeJust :: Bool -> a -> Maybe a
 onChangeJust b work = if b then Just work else Nothing
@@ -62,6 +67,7 @@ guiDefinition = do
     textBoxFilterPrefix <- hwuTextBox []
     textBoxPrename <- hwuTextBox []
     textBoxSurname <- hwuTextBox []
+    textareaDescr <- hwuTextarea []
     
     multiSelectEntries <- hwuMultiSelect [width := 350]
     
@@ -90,6 +96,7 @@ guiDefinition = do
              <td>
              <td>Surname:
              <td>^{hwuLayout textBoxSurname}
+         ^{hwuLayout textareaDescr}
          ^{hwuLayout multiSelectEntries}
          <table>    
            <tr>    
@@ -104,12 +111,13 @@ guiDefinition = do
     let prefix = hwuWire textBoxFilterPrefix 
     let prenameTxt = hwuWire textBoxPrename 
     let surnameTxt = hwuWire textBoxSurname
+    let descrTxt = hwuWire textareaDescr
     let create = hwuWire buttonCreate
     let entrieslist = hwuWire multiSelectEntries
     let delete = hwuWire buttonDelete
     
         -- build the FRP wires
-    let addNameW = mkFix (\_ names -> Right (names ++ [Name "New Entry" "Edit me!"]))
+    let addNameW = mkFix (\_ names -> Right (names ++ [Person "New Entry" "Edit me!" "For fun!"]))
     let delNamesW = mkFix (\_ (names, selection) -> Right (fst <$> filter (\(_, i) ->  i `notElem` selection) (zip names [0..]) ))
 
         -- main wire to process crud element
@@ -153,12 +161,20 @@ guiDefinition = do
                                             names
                                 returnA -< (names', selection, filtertxt)
                         <|> do
+                                -- check description
+                                description <- descrTxt -< onChangeJust (nchange || fchange || schange) (if not (null selection) then  head $ toListOf (element (head selection) . descr) names else "")
+                                let names' = if not (null selection) then
+                                            (element (head selection) . descr) .~ description $ names
+                                          else
+                                            names
+                                returnA -< (names', selection, filtertxt)
+                        <|> do
                                 returnA -< (names, selection, filtertxt)
                 returnA -< (names', selection', filtertxt')
 
     let w2 = proc _ -> do
                        rec
-                         (names, selection, filtertxt) <- delay ([]::Names, []::Selection, ""::String) -< (names', selection', filtertxt')
+                         (names, selection, filtertxt) <- delay ([]::Persons, []::Selection, ""::String) -< (names', selection', filtertxt')
                          (names', selection', filtertxt') <- w1 -< (names, selection, filtertxt)
                        returnA -< ()
     
