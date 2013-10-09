@@ -70,6 +70,15 @@ hwuTextBox props = do
         putCMap nmap
         return $ WidgetWire l w
 
+hwuTextarea :: [Property Textarea] -> WWMonad (WidgetWire (Maybe String) String)
+hwuTextarea props = do
+        elid <- freshId "hwuId"
+        cmap <- getCMap
+        let l = wTextarea elid props
+        (w, nmap) <- liftIO $ textareaW elid cmap
+        putCMap nmap
+        return $ WidgetWire l w
+
 hwuRadioButton :: [Property RadioButton] -> WWMonad (WidgetWire (Maybe Bool) Bool)
 hwuRadioButton props = do
         elid <- freshId "hwuId"

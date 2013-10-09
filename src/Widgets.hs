@@ -23,8 +23,10 @@ module Widgets (
   wNumberTextBox,
   wRadioButton,
   wTextBox,
+  wTextarea,
   Button,
   TextBox,
+  Textarea,
   RadioButton,
   MultiSelect,
   HtmlText
@@ -217,6 +219,27 @@ wTextBox wid paralist = do
   toWidget [hamlet|
            <input id="#{wid}" type="textbox">
             |]
+
+
+wTextarea :: String -- ^ Element Id
+             -> [Property Textarea] -- ^ additional parameters
+             -> Widget -- ^ resulting Yesod widget
+wTextarea wid paralist = do
+  toWidget [julius|
+           require(["dojo/ready", "dojo/parser", "dijit/form/Textarea", "dojo/dom", "dojo/json"],
+                   function(read, parser, Textarea, dom, JSON) {
+                     var myTextarea = new Textarea({
+                         #{rawJS $ parasToJS paralist}
+                         onChange: function(val) {
+                             sendMessage("#{rawJS wid}", "GUIEvent OnChange", val, "Textarea");
+                           },
+                         intermediateChanges: true
+                         }, '#{rawJS wid}');
+                   });
+           |]
+  toWidget [hamlet|
+           <textarea id="#{wid}"></textarea>
+           |]
 
 
 data MultiSelect = MultiSelect ()

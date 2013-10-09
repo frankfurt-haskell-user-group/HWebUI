@@ -40,7 +40,7 @@ import GUISignal
 type GUIElementId = String
 
 -- | The type of GUI Element
-data GUIElementType = Button | CheckBox | TextBox | MultiSelect | NumberTextBox | RadioButton | Html deriving (Show, Read)
+data GUIElementType = Button | CheckBox | TextBox | Textarea | MultiSelect | NumberTextBox | RadioButton | Html deriving (Show, Read)
 instance J.FromJSON GUIElementType where
   parseJSON (String sig) = return (read (unpack sig))
   parseJSON _ = mzero
