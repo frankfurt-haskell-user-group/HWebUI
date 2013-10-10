@@ -47,7 +47,7 @@ putCMap cmap = do
 updateState :: (String -> props -> Widget)
                -> (String -> GSChannelMap -> IO (GUIWire a b, GSChannelMap))
                -> props
-               -> StateT GuiState IO (WidgetWire a b)
+               -> WWMonad (WidgetWire a b)
 updateState widget wire props = do
         elid <- freshId "hwuId"
         cmap <- getCMap
