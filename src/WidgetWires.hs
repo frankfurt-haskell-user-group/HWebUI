@@ -22,6 +22,7 @@ data GuiState = GuiState {
         
 type WWMonad a = StateT GuiState IO a
 
+initGuiState :: GuiState
 initGuiState = GuiState ( (fromList [])::GSChannelMap ) 0
 
 freshId :: String -> WWMonad String
@@ -43,57 +44,32 @@ putCMap cmap = do
         put $ GuiState cmap (idCounter gs)
         return ()
 
-hwuButton :: [Property Button] -> WWMonad (WidgetWire a a)
-hwuButton props = do
+updateState :: (String -> props -> Widget)
+               -> (String -> GSChannelMap -> IO (GUIWire a b, GSChannelMap))
+               -> props
+               -> StateT GuiState IO (WidgetWire a b)
+updateState widget wire props = do
         elid <- freshId "hwuId"
         cmap <- getCMap
-        let l = wButton elid props
-        (w, nmap) <- liftIO $ buttonW elid cmap
+        let l = widget elid props
+        (w, nmap) <- liftIO $ wire elid cmap
         putCMap nmap
         return $ WidgetWire l w
+
+hwuButton :: [Property Button] -> WWMonad (WidgetWire a a)
+hwuButton = updateState wButton buttonW
 
 hwuHtml :: [Property HtmlText] -> WWMonad (WidgetWire (Maybe String) String)
-hwuHtml props = do
-        elid <- freshId "hwuId"
-        cmap <- getCMap
-        let l = wHtml elid props
-        (w, nmap) <- liftIO $ htmlW elid cmap
-        putCMap nmap
-        return $ WidgetWire l w
+hwuHtml = updateState wHtml htmlW
 
 hwuTextBox :: [Property TextBox] -> WWMonad (WidgetWire (Maybe String) String)
-hwuTextBox props = do
-        elid <- freshId "hwuId"
-        cmap <- getCMap
-        let l = wTextBox elid props
-        (w, nmap) <- liftIO $ textBoxW elid cmap
-        putCMap nmap
-        return $ WidgetWire l w
+hwuTextBox = updateState wTextBox textBoxW
 
 hwuTextarea :: [Property Textarea] -> WWMonad (WidgetWire (Maybe String) String)
-hwuTextarea props = do
-        elid <- freshId "hwuId"
-        cmap <- getCMap
-        let l = wTextarea elid props
-        (w, nmap) <- liftIO $ textareaW elid cmap
-        putCMap nmap
-        return $ WidgetWire l w
+hwuTextarea = updateState wTextarea textareaW
 
 hwuRadioButton :: [Property RadioButton] -> WWMonad (WidgetWire (Maybe Bool) Bool)
-hwuRadioButton props = do
-        elid <- freshId "hwuId"
-        cmap <- getCMap
-        let l = wRadioButton elid props
-        (w, nmap) <- liftIO $ radioButtonW elid cmap
-        putCMap nmap
-        return $ WidgetWire l w
+hwuRadioButton = updateState wRadioButton radioButtonW
 
 hwuMultiSelect :: [Property MultiSelect] -> WWMonad (WidgetWire (Maybe [(String, Bool, a)]) [a])
-hwuMultiSelect props = do
-        elid <- freshId "hwuId"
-        cmap <- getCMap
-        let l = wMultiSelect elid props
-        (w, nmap) <- liftIO $ multiSelectW elid cmap
-        putCMap nmap
-        return $ WidgetWire l w
-
+hwuMultiSelect = updateState wMultiSelect multiSelectW
