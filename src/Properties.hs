@@ -63,10 +63,13 @@ class HasSize w where
 
 intPairToJS :: String -> Int -> String
 intPairToJS s i =  s ++ ": "  ++ (show i)
+
 floatPairToJS :: String -> Float -> String
 floatPairToJS s f = s ++ ": "  ++ (show f)
+
 boolPairToJS :: String -> Bool -> String
 boolPairToJS s b = s ++ ": " ++ (if b then "true" else "false")
+
 stringPairToJS :: String -> String -> String
 stringPairToJS s1 s2 = s1 ++ ": \"" ++ s2 ++ "\""
   

@@ -40,13 +40,22 @@ import GUISignal
 type GUIElementId = String
 
 -- | The type of GUI Element
-data GUIElementType = Button | CheckBox | TextBox | Textarea | MultiSelect | NumberTextBox | RadioButton | Html deriving (Show, Read)
+data GUIElementType = Button
+                    | CheckBox
+                    | TextBox
+                    | Textarea
+                    | MultiSelect
+                    | NumberTextBox
+                    | RadioButton
+                    | Html
+     deriving (Show, Read)
+
 instance J.FromJSON GUIElementType where
   parseJSON (String sig) = return (read (unpack sig))
   parseJSON _ = mzero
+
 instance J.ToJSON GUIElementType where
   toJSON sig = String (pack (show sig))
- 
 
 -- | A GUI message, used to communicate between Browser and Haskell server
 data GUIMessage = GUIMessage {
@@ -126,10 +135,8 @@ receiveGMReadChannel gsc = do
 --        hFlush stdout
         _setValueSetFlag gsc False SVNone
         return Nothing
-        else do
-          return $ Just gmsg
-    Nothing -> do
-      return Nothing
+        else return $ Just gmsg
+    Nothing -> return Nothing
              
 
 -- | write the message buffer (Channel) during sending of a GUI message towards the Browser GUI element

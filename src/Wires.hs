@@ -203,8 +203,6 @@ htmlW :: String -- ^ Element Id
 htmlW elid cmap = guiWireGen elid htmlW' cmap
 
 -- button wire
---
-
 buttonW' :: String -> GSChannel -> IO (GUIWire a a)
 buttonW' boxid channel = do
   let wire =  mkFixM (\t var -> do

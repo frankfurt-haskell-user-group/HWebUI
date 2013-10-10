@@ -16,8 +16,18 @@ import Data.Text
 import Data.Vector (toList, fromList)
 import Data.Attoparsec.Number as N
 
--- | A GUI value is the content of a GUI element, a String, a Bool a Number or similar. Compound types are realised as lists of values. This data type is used in 'GUIMessage' to encode different values in a common data type. 
-data GUIValue = SVDouble Double | SVString String | SVList [GUIValue] | SVInt Int | SVBool Bool | SVEvent | SVNone deriving (Show, Read, Eq)
+-- | A GUI value is the content of a GUI element, a String, a Bool a
+-- Number or similar. Compound types are realised as lists of
+-- values. This data type is used in 'GUIMessage' to encode different
+-- values in a common data type.
+data GUIValue = SVDouble Double
+              | SVString String
+              | SVList [GUIValue]
+              | SVInt Int
+              | SVBool Bool
+              | SVEvent
+              | SVNone
+     deriving (Show, Read, Eq)
 
 instance J.FromJSON GUIValue where
   parseJSON (String "Event") = return SVEvent
