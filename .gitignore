@@ -5,5 +5,7 @@ client_session_key.aes
 *.hi
 *~
 
+.cabal-sandbox
+cabal.sandbox.config
 
 /.dist-buildwrapper
