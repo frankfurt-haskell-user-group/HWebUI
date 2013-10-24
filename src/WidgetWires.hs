@@ -68,6 +68,9 @@ hwuTextBox = updateState wTextBox textBoxW
 hwuTextarea :: [Property Textarea] -> WWMonad (WidgetWire (Maybe String) String)
 hwuTextarea = updateState wTextarea textareaW
 
+hwuSimpleTextarea :: [Property Textarea] -> WWMonad (WidgetWire (Maybe String) String)
+hwuSimpleTextarea = updateState wTextarea textareaW
+
 hwuRadioButton :: [Property RadioButton] -> WWMonad (WidgetWire (Maybe Bool) Bool)
 hwuRadioButton = updateState wRadioButton radioButtonW
 

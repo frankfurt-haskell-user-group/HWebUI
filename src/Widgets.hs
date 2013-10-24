@@ -27,22 +27,23 @@ module Widgets (
   Button,
   TextBox,
   Textarea,
+  SimpleTextarea,
   RadioButton,
   MultiSelect,
   HtmlText
-  
+
   -- ** Widget Implementation
   -- $widgets
 
   ) where
 
-import Yesod
-import Text.Julius (rawJS)
-import Prelude hiding ((.), id)
-import Data.List (intersperse)
+import           Data.List   (intersperse)
+import           Prelude     hiding (id, (.))
+import           Text.Julius (rawJS)
+import           Yesod       hiding (Textarea)
 
-import Properties
-import Server
+import           Properties
+import           Server
 
 -- | Yesod widget to initialize needed Javascript functionality in the HTML code of the GUI. Provides Dojokit inclusion and communication with Haskell Yesod server over websockets.
 wInitGUI :: Int -- ^ port used to communicate with Haskell server
@@ -221,17 +222,38 @@ wTextBox wid paralist = do
             |]
 
 
+data Textarea = Textarea ()
+instance HasName Textarea
+instance HasLabel Textarea
+instance HasStyle Textarea
+
 wTextarea :: String -- ^ Element Id
              -> [Property Textarea] -- ^ additional parameters
              -> Widget -- ^ resulting Yesod widget
-wTextarea wid paralist = do
+wTextarea = textarea "Textarea"
+
+data SimpleTextarea = SimpleTextarea ()
+instance HasName SimpleTextarea
+instance HasLabel SimpleTextarea
+instance HasStyle SimpleTextarea
+
+wSimpleTextarea :: String -- ^ Element Id
+             -> [Property SimpleTextarea] -- ^ additional parameters
+             -> Widget -- ^ resulting Yesod widget
+wSimpleTextarea = textarea "SimpleTextarea"
+
+textarea :: String -- ^ Type of the textarea
+            -> String -- ^ Element Id
+            -> [Property a] -- ^ additional parameters
+            -> Widget -- ^ resulting Yesod widget
+textarea type' wid paralist = do
   toWidget [julius|
-           require(["dojo/ready", "dojo/parser", "dijit/form/Textarea", "dojo/dom", "dojo/json"],
-                   function(read, parser, Textarea, dom, JSON) {
-                     var myTextarea = new Textarea({
+           require(["dojo/ready", "dojo/parser", "dijit/form/#{rawJS type'}", "dojo/dom", "dojo/json"],
+                   function(read, parser, #{rawJS type'}, dom, JSON) {
+                     var myTextarea = new #{rawJS type'}({
                          #{rawJS $ parasToJS paralist}
                          onChange: function(val) {
-                             sendMessage("#{rawJS wid}", "GUIEvent OnChange", val, "Textarea");
+                             sendMessage("#{rawJS wid}", "GUIEvent OnChange", val, "#{rawJS type'}");
                            },
                          intermediateChanges: true
                          }, '#{rawJS wid}');

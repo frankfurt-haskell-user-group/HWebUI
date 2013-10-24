@@ -13,6 +13,7 @@ module Wires (
   radioButtonW,
   textBoxW,
   textareaW,
+  simpleTextareaW,
 
   -- ** functions to extend basic wires with additional functionality
   -- $advancedwire
@@ -44,7 +45,7 @@ import GUIValue                  (GUIValue (SVBool, SVDouble, SVList, SVString))
 import GUIEvent                  (GUIEvent (OnChange))
 import GUICommand                (GUICommand (SetValue))
 import GUISignal                 (GUISignal (GUICommand, GUIEvent))
-import Messaging                 (createChannel, gmSignal, gmValue, GSChannel, GUIElementType (CheckBox, Html, MultiSelect, NumberTextBox, RadioButton, TextBox, Textarea), GUIMessage (GUIMessage), receiveGMReadChannel, sendGMWriteChannel)
+import Messaging                 (createChannel, gmSignal, gmValue, GSChannel, GUIElementType (CheckBox, Html, MultiSelect, NumberTextBox, RadioButton, TextBox, Textarea, SimpleTextarea), GUIMessage (GUIMessage), receiveGMReadChannel, sendGMWriteChannel)
 
 
 -- Netwire Types
@@ -109,6 +110,13 @@ textareaW :: String -- ^ ElementId
                -> GSChannelMap -- ^ Channels
                -> IO (GUIWire (Maybe String) String, GSChannelMap)
 textareaW elid cmap = valueWireGen elid SVString (\svval -> let (SVString bstate) = svval in bstate) Textarea cmap
+
+-- | Baisc wire for Textarea GUI element functionality
+simpleTextareaW :: String -- ^ ElementId
+               -> GSChannelMap -- ^ Channels
+               -> IO (GUIWire (Maybe String) String, GSChannelMap)
+simpleTextareaW elid cmap = valueWireGen elid SVString (\svval -> let (SVString bstate) = svval in bstate) SimpleTextarea cmap
+
 
 -- | Basic wire for MultiSelect GUI element functionality 
 _multiSelectW :: String -- ^ Element Id
