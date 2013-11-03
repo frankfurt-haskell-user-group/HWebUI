@@ -44,6 +44,7 @@ data GUIElementType = Button
                     | CheckBox
                     | TextBox
                     | Textarea
+                    | SimpleTextarea
                     | MultiSelect
                     | NumberTextBox
                     | RadioButton
